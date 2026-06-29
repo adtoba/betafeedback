@@ -1,0 +1,6 @@
+/bin/
+.env
+*.log
+
+# Uploaded media (local storage)
+data/
