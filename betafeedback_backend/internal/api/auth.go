@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/auth/credentials/idtoken"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -91,6 +92,12 @@ func randomCode() string {
 
 // --- Handlers ---
 
+func (s *Server) authConfig(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"google_client_id": s.cfg.GoogleClientID,
+	})
+}
+
 type startEmailRequest struct {
 	Email string `json:"email"`
 }
@@ -147,4 +154,64 @@ func (s *Server) authEmailVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"token": token, "user": user})
+}
+
+type googleAuthRequest struct {
+	IDToken string `json:"id_token"`
+}
+
+func (s *Server) authGoogle(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.GoogleClientID == "" {
+		writeError(w, http.StatusNotImplemented, "google sign-in is not configured")
+		return
+	}
+
+	var req googleAuthRequest
+	if err := decode(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	token := strings.TrimSpace(req.IDToken)
+	if token == "" {
+		writeError(w, http.StatusBadRequest, "id_token is required")
+		return
+	}
+
+	payload, err := idtoken.Validate(r.Context(), token, s.cfg.GoogleClientID)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid google token")
+		return
+	}
+
+	email := strings.ToLower(claimString(payload.Claims, "email"))
+	if !validEmail(email) {
+		writeError(w, http.StatusUnauthorized, "google account has no email")
+		return
+	}
+	if verified, ok := payload.Claims["email_verified"].(bool); ok && !verified {
+		writeError(w, http.StatusUnauthorized, "google email is not verified")
+		return
+	}
+
+	name := strings.TrimSpace(claimString(payload.Claims, "name"))
+	if name == "" {
+		name = nameFromEmail(email)
+	}
+
+	user, err := s.store.UpsertUser(r.Context(), email, name, avatarHue(email))
+	if err != nil {
+		s.serverError(w, "upsert user", err)
+		return
+	}
+	jwt, err := s.jwt.issue(user.ID)
+	if err != nil {
+		s.serverError(w, "issue token", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"token": jwt, "user": user})
+}
+
+func claimString(claims map[string]any, key string) string {
+	v, _ := claims[key].(string)
+	return v
 }

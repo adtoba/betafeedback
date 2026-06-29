@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_icons.dart';
 
 import '../app/app_scope.dart';
 import '../data/app_state.dart';
 import '../models/feedback.dart';
+import '../models/release.dart';
+import '../widgets/fix_bug_sheet.dart';
 import '../widgets/structured_bug_card.dart';
 
 enum _BugFilter { all, suggested, open, needsInfo, fixed }
 
 enum _BugSort { newest, severity }
+
+enum _BugViewMode { cards, checklist }
+
+const _viewModeKey = 'bug_summary_view_mode';
 
 /// A read-and-act view of every AI-structured bug in a project, with summary
 /// counts at the top.
@@ -25,6 +32,32 @@ class BugSummaryScreen extends StatefulWidget {
 class _BugSummaryScreenState extends State<BugSummaryScreen> {
   _BugFilter _filter = _BugFilter.all;
   _BugSort _sort = _BugSort.newest;
+  _BugViewMode _viewMode = _BugViewMode.cards;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadViewMode();
+  }
+
+  Future<void> _loadViewMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_viewModeKey);
+    if (stored == null || !mounted) return;
+    setState(() {
+      _viewMode = _BugViewMode.values.firstWhere(
+        (m) => m.name == stored,
+        orElse: () => _BugViewMode.cards,
+      );
+    });
+  }
+
+  Future<void> _setViewMode(_BugViewMode mode) async {
+    if (_viewMode == mode) return;
+    setState(() => _viewMode = mode);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_viewModeKey, mode.name);
+  }
 
   List<StructuredBug> _filtered(List<StructuredBug> bugs) {
     final filtered = switch (_filter) {
@@ -77,7 +110,26 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
         final visible = _filtered(bugs);
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Bug summary')),
+          appBar: AppBar(
+            title: const Text('Bug summary'),
+            actions: [
+              IconButton(
+                tooltip: _viewMode == _BugViewMode.cards
+                    ? 'Switch to checklist'
+                    : 'Switch to detailed cards',
+                onPressed: () => _setViewMode(
+                  _viewMode == _BugViewMode.cards
+                      ? _BugViewMode.checklist
+                      : _BugViewMode.cards,
+                ),
+                icon: Icon(
+                  _viewMode == _BugViewMode.cards
+                      ? AppIcons.listChecks
+                      : AppIcons.layoutList,
+                ),
+              ),
+            ],
+          ),
           body: bugs.isEmpty
               ? _EmptyBugs()
               : ListView(
@@ -177,7 +229,7 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
                               ),
                         ),
                       )
-                    else
+                    else if (_viewMode == _BugViewMode.cards)
                       for (final bug in visible) ...[
                         StructuredBugCard(
                           bug: bug,
@@ -218,11 +270,131 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                      ],
+                      ]
+                    else
+                      Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < visible.length; i++) ...[
+                              if (i > 0) const Divider(height: 1),
+                              _BugChecklistTile(
+                                bug: visible[i],
+                                canManage: canManage,
+                                onTap: () => _showBugDetail(
+                                  context,
+                                  appState: appState,
+                                  projectId: project.id,
+                                  releases: project.releases,
+                                  bug: visible[i],
+                                  canManage: canManage,
+                                ),
+                                onConfirm: () => _confirm(
+                                  context,
+                                  appState,
+                                  project.id,
+                                  visible[i].id,
+                                ),
+                                onMarkFixed: () => _openFixSheet(
+                                  context,
+                                  project.id,
+                                  visible[i].id,
+                                  project.releases,
+                                ),
+                                onReopen: () => _reopen(
+                                  context,
+                                  appState,
+                                  project.id,
+                                  visible[i].id,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                   ],
                 ),
         );
       },
+    );
+  }
+
+  void _openFixSheet(
+    BuildContext context,
+    String projectId,
+    String bugId,
+    List<Release> releases,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => FixBugSheet(
+        projectId: projectId,
+        bugId: bugId,
+        releases: releases,
+      ),
+    );
+  }
+
+  void _showBugDetail(
+    BuildContext context, {
+    required AppState appState,
+    required String projectId,
+    required List<Release> releases,
+    required StructuredBug bug,
+    required bool canManage,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.85,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          child: StructuredBugCard(
+            bug: bug,
+            projectId: projectId,
+            releases: releases,
+            reporterName: bug.reporterName,
+            canManage: canManage,
+            onMarkFixed: () {},
+            onConfirm: () => _confirm(
+              sheetContext,
+              appState,
+              projectId,
+              bug.id,
+            ),
+            onDismiss: () => _dismiss(
+              sheetContext,
+              appState,
+              projectId,
+              bug.id,
+            ),
+            onNeedsInfo: () => _needsInfo(
+              sheetContext,
+              appState,
+              projectId,
+              bug.id,
+            ),
+            onResume: () => _resume(
+              sheetContext,
+              appState,
+              projectId,
+              bug.id,
+            ),
+            onReopen: () => _reopen(
+              sheetContext,
+              appState,
+              projectId,
+              bug.id,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -336,6 +508,107 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
       );
     }
   }
+}
+
+class _BugChecklistTile extends StatelessWidget {
+  const _BugChecklistTile({
+    required this.bug,
+    required this.canManage,
+    required this.onTap,
+    required this.onConfirm,
+    required this.onMarkFixed,
+    required this.onReopen,
+  });
+
+  final StructuredBug bug;
+  final bool canManage;
+  final VoidCallback onTap;
+  final VoidCallback onConfirm;
+  final VoidCallback onMarkFixed;
+  final VoidCallback onReopen;
+
+  bool get _isChecked => bug.status == BugStatus.fixed;
+
+  bool get _canToggle =>
+      canManage &&
+      (bug.status == BugStatus.suggested ||
+          bug.status == BugStatus.open ||
+          bug.status == BugStatus.fixed);
+
+  void _onCheckChanged(bool? value) {
+    if (value == true) {
+      switch (bug.status) {
+        case BugStatus.suggested:
+          onConfirm();
+        case BugStatus.open:
+          onMarkFixed();
+        case BugStatus.needsInfo:
+        case BugStatus.fixed:
+          break;
+      }
+      return;
+    }
+    if (value == false && bug.status == BugStatus.fixed) {
+      onReopen();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isFixed = bug.status == BugStatus.fixed;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: _isChecked,
+              onChanged: _canToggle ? _onCheckChanged : null,
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12, right: 8, bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bug.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        decoration: isFixed ? TextDecoration.lineThrough : null,
+                        color: isFixed ? scheme.onSurfaceVariant : null,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${bug.severity} · ${_statusLabel(bug.status)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _statusLabel(BugStatus status) => switch (status) {
+        BugStatus.suggested => 'Suggested',
+        BugStatus.open => 'Open',
+        BugStatus.needsInfo => 'Needs info',
+        BugStatus.fixed => 'Fixed',
+      };
 }
 
 class _StatCard extends StatelessWidget {

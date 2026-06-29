@@ -6,6 +6,9 @@ export function Nav() {
       <div className="container nav__inner">
         <Brand />
         <div className="nav__cta">
+          <a className="btn btn--ghost btn--sm" href="/app/login">
+            Sign in
+          </a>
           <a className="btn btn--white btn--sm" href="#download">
             Get the app
           </a>

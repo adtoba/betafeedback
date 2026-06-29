@@ -19,6 +19,8 @@ type Config struct {
 	// AppBaseURL is the public web origin used to build shareable links (e.g.
 	// project invites).
 	AppBaseURL string
+	// GoogleClientID verifies Google Sign-In ID tokens from the web app.
+	GoogleClientID string
 	// MediaDir is the local directory where uploaded feedback attachments
 	// (screenshots, recordings) are stored and served from.
 	MediaDir string
@@ -44,8 +46,9 @@ func Load() (Config, error) {
 		// Optional: when unset, feedback structuring falls back to local heuristics.
 		OpenAIAPIKey: os.Getenv("OPENAI_API_KEY"),
 		OpenAIModel:  getenv("OPENAI_MODEL", "gpt-4o-mini"),
-		AppBaseURL:   getenv("APP_BASE_URL", "https://betafeedback.com"),
-		MediaDir:     getenv("MEDIA_DIR", "./data/media"),
+		AppBaseURL:     getenv("APP_BASE_URL", "https://betafeedback.com"),
+		GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"),
+		MediaDir:       getenv("MEDIA_DIR", "./data/media"),
 		SMTPHost:     os.Getenv("SMTP_HOST"),
 		SMTPPort:     getenv("SMTP_PORT", "587"),
 		SMTPUser:     os.Getenv("SMTP_USER"),

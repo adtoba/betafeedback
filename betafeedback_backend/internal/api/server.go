@@ -50,8 +50,10 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("GET /healthz", s.health)
 
+	mux.HandleFunc("GET /v1/auth/config", s.authConfig)
 	mux.HandleFunc("POST /v1/auth/email/start", s.authEmailStart)
 	mux.HandleFunc("POST /v1/auth/email/verify", s.authEmailVerify)
+	mux.HandleFunc("POST /v1/auth/google", s.authGoogle)
 
 	mux.HandleFunc("GET /v1/me", s.requireAuth(s.getMe))
 	mux.HandleFunc("PUT /v1/me/preferences", s.requireAuth(s.updatePreferences))

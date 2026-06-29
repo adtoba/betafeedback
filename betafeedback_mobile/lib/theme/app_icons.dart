@@ -26,6 +26,7 @@ abstract final class AppIcons {
   static const imageAdd = LucideIcons.imagePlus;
   static const imageBroken = LucideIcons.imageOff;
   static const link = LucideIcons.link;
+  static const layoutList = LucideIcons.layoutList;
   static const listChecks = LucideIcons.listChecks;
   static const logout = LucideIcons.logOut;
   static const mail = LucideIcons.mail;
