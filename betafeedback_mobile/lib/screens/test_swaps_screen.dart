@@ -155,7 +155,7 @@ class _TestSwapsScreenState extends State<TestSwapsScreen> {
                     icon: AppIcons.repeat,
                     title: 'No swaps yet',
                     message:
-                        'Propose a test-for-test from Find testers — you join '
+                        'Propose a test-for-test from find testers. You join '
                         'their project, they join yours.',
                   )
                 : RefreshIndicator(
@@ -419,7 +419,8 @@ class _ProjectChip extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             caption,
@@ -427,8 +428,10 @@ class _ProjectChip extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: AppSpace.xs),
+          const SizedBox(height: AppSpace.lg),
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               ProjectLogo(
                 projectName: name,
@@ -437,13 +440,12 @@ class _ProjectChip extends StatelessWidget {
                 borderRadius: 7,
               ),
               const SizedBox(width: AppSpace.sm),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium,
-                ),
+              Text(
+                name,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium,
               ),
             ],
           ),

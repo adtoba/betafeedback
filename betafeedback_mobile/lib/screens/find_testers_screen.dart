@@ -290,8 +290,8 @@ class _FindTestersScreenState extends State<FindTestersScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: theme.textTheme.titleMedium),
-                  const SizedBox(height: AppSpace.xs),
+                  // Text(title, style: theme.textTheme.titleMedium),
+                  const SizedBox(height: AppSpace.lg),
                   Text(
                     onSwaps
                         ? 'Propose a swap with creators who also need testers. '

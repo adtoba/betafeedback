@@ -1,33 +1,33 @@
 const features = [
   {
-    icon: "✨",
-    title: "AI bug structuring",
-    text: "Every report is auto-drafted into a clean bug — title, repro steps, expected vs. actual, and severity.",
+    label: "Network",
+    title: "Open to test",
+    text: "Creators browse testers who’ve opted in — devices, platforms, and a short bio — then invite the right people instead of blasting a group chat.",
   },
   {
-    icon: "✅",
+    label: "Reciprocity",
+    title: "Test-for-test swaps",
+    text: "Propose a swap: you test their build, they test yours. Accept from the swaps inbox and both projects get a tester without hunting.",
+  },
+  {
+    label: "Structure",
+    title: "AI bug drafts",
+    text: "Feedback becomes a developer-ready report — title, steps, expected vs. actual, severity — sitting as a suggestion until you confirm.",
+  },
+  {
+    label: "Builds",
+    title: "Multi-platform links",
+    text: "Attach TestFlight, Play Store, web, or desktop links per platform so every tester grabs the right build from one project.",
+  },
+  {
+    label: "Control",
     title: "Human in the loop",
-    text: "AI drafts land as suggestions. A developer confirms or dismisses, so noise never hits your bug list.",
+    text: "AI never writes to your bug list alone. Developers confirm or dismiss drafts, set severity, and mark fixes when they’re done.",
   },
   {
-    icon: "📦",
-    title: "Multi-platform builds",
-    text: "Attach a test link per platform — TestFlight, Play Store, web, or desktop — so testers grab the right build.",
-  },
-  {
-    icon: "👥",
-    title: "Roles & invites",
-    text: "Invite testers and developers with one shareable link. Each role sees exactly what it needs.",
-  },
-  {
-    icon: "📊",
-    title: "Severity triage",
-    text: "Bugs arrive pre-tagged Low → Critical, so the team always knows what to pick up first.",
-  },
-  {
-    icon: "⚡",
-    title: "Activity & releases",
-    text: "A live log of structured bugs, fixes, and releases keeps everyone aligned — no status meeting.",
+    label: "Roles",
+    title: "Invites that fit",
+    text: "One shareable link. Testers send feedback; developers triage. Everyone sees the slice of the project they need.",
   },
 ];
 
@@ -35,16 +35,18 @@ export function FeaturesSection() {
   return (
     <section className="section" id="features">
       <div className="container">
-        <div className="section__head">
-          <p className="eyebrow">Why teams love it</p>
-          <h2>Everything between “it’s broken” and “it’s fixed.”</h2>
+        <div className="section__head section__head--left">
+          <p className="eyebrow">What’s inside</p>
+          <h2>Built for the messy middle of a beta.</h2>
+          <p className="section__sub">
+            Recruiting, reporting, and triage in one place — so “it’s broken”
+            turns into something you can actually fix.
+          </p>
         </div>
         <div className="features">
           {features.map((f) => (
-            <article className="card feature" key={f.title}>
-              <div className="feature__icon" aria-hidden="true">
-                {f.icon}
-              </div>
+            <article className="feature" key={f.title}>
+              <p className="feature__label">{f.label}</p>
               <h3>{f.title}</h3>
               <p>{f.text}</p>
             </article>
