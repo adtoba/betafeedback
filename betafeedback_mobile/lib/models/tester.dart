@@ -171,3 +171,162 @@ class TesterRating {
     createdAt: DateTime.parse(json['created_at'] as String),
   );
 }
+
+class SwapProject {
+  const SwapProject({
+    required this.id,
+    required this.name,
+    this.logoUrl,
+  });
+
+  final String id;
+  final String name;
+  final String? logoUrl;
+
+  factory SwapProject.fromJson(Map<String, dynamic> json) => SwapProject(
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    logoUrl: json['logo_url'] as String?,
+  );
+}
+
+class SwapPartner {
+  const SwapPartner({
+    required this.id,
+    required this.name,
+    this.email = '',
+    this.avatarHue,
+    this.bio = '',
+    this.ratingAvg = 0,
+    this.ratingCount = 0,
+    this.projects = const [],
+    this.swapPending = false,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final int? avatarHue;
+  final String bio;
+  final double ratingAvg;
+  final int ratingCount;
+  final List<SwapProject> projects;
+  final bool swapPending;
+
+  bool get canPropose => !swapPending && projects.isNotEmpty;
+
+  String get ratingLabel {
+    if (ratingCount == 0) return 'New partner';
+    return '${ratingAvg.toStringAsFixed(1)} · $ratingCount '
+        '${ratingCount == 1 ? "rating" : "ratings"}';
+  }
+
+  factory SwapPartner.fromJson(Map<String, dynamic> json) => SwapPartner(
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    email: json['email'] as String? ?? '',
+    avatarHue: (json['avatar_hue'] as num?)?.toInt(),
+    bio: json['tester_bio'] as String? ?? '',
+    ratingAvg: (json['rating_avg'] as num?)?.toDouble() ?? 0,
+    ratingCount: (json['rating_count'] as num?)?.toInt() ?? 0,
+    projects: ((json['projects'] as List?) ?? const [])
+        .map((e) => SwapProject.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    swapPending: json['swap_pending'] as bool? ?? false,
+  );
+
+  SwapPartner copyWith({bool? swapPending}) {
+    return SwapPartner(
+      id: id,
+      name: name,
+      email: email,
+      avatarHue: avatarHue,
+      bio: bio,
+      ratingAvg: ratingAvg,
+      ratingCount: ratingCount,
+      projects: projects,
+      swapPending: swapPending ?? this.swapPending,
+    );
+  }
+}
+
+enum TestSwapStatus { pending, accepted, declined, cancelled, fulfilled }
+
+TestSwapStatus testSwapStatusFromString(String? value) => switch (value) {
+  'accepted' => TestSwapStatus.accepted,
+  'declined' => TestSwapStatus.declined,
+  'cancelled' => TestSwapStatus.cancelled,
+  'fulfilled' => TestSwapStatus.fulfilled,
+  _ => TestSwapStatus.pending,
+};
+
+String testSwapStatusLabel(TestSwapStatus status) => switch (status) {
+  TestSwapStatus.pending => 'Pending',
+  TestSwapStatus.accepted => 'Accepted',
+  TestSwapStatus.declined => 'Declined',
+  TestSwapStatus.cancelled => 'Cancelled',
+  TestSwapStatus.fulfilled => 'Complete',
+};
+
+class TestSwap {
+  const TestSwap({
+    required this.id,
+    required this.fromUserId,
+    required this.fromUserName,
+    required this.toUserId,
+    required this.toUserName,
+    required this.fromProjectId,
+    required this.fromProjectName,
+    this.fromProjectLogoUrl,
+    required this.toProjectId,
+    required this.toProjectName,
+    this.toProjectLogoUrl,
+    this.message = '',
+    this.status = TestSwapStatus.pending,
+    required this.createdAt,
+    this.respondedAt,
+    this.fulfilledAt,
+  });
+
+  final String id;
+  final String fromUserId;
+  final String fromUserName;
+  final String toUserId;
+  final String toUserName;
+  final String fromProjectId;
+  final String fromProjectName;
+  final String? fromProjectLogoUrl;
+  final String toProjectId;
+  final String toProjectName;
+  final String? toProjectLogoUrl;
+  final String message;
+  final TestSwapStatus status;
+  final DateTime createdAt;
+  final DateTime? respondedAt;
+  final DateTime? fulfilledAt;
+
+  bool get isPending => status == TestSwapStatus.pending;
+
+  factory TestSwap.fromJson(Map<String, dynamic> json) => TestSwap(
+    id: json['id'] as String,
+    fromUserId: json['from_user_id'] as String,
+    fromUserName: json['from_user_name'] as String? ?? '',
+    toUserId: json['to_user_id'] as String,
+    toUserName: json['to_user_name'] as String? ?? '',
+    fromProjectId: json['from_project_id'] as String,
+    fromProjectName: json['from_project_name'] as String? ?? '',
+    fromProjectLogoUrl: json['from_project_logo_url'] as String?,
+    toProjectId: json['to_project_id'] as String,
+    toProjectName: json['to_project_name'] as String? ?? '',
+    toProjectLogoUrl: json['to_project_logo_url'] as String?,
+    message: json['message'] as String? ?? '',
+    status: testSwapStatusFromString(json['status'] as String?),
+    createdAt: DateTime.parse(json['created_at'] as String),
+    respondedAt: json['responded_at'] == null
+        ? null
+        : DateTime.parse(json['responded_at'] as String),
+    fulfilledAt: json['fulfilled_at'] == null
+        ? null
+        : DateTime.parse(json['fulfilled_at'] as String),
+  );
+}

@@ -14,6 +14,7 @@ import '../models/subscription.dart';
 import '../models/user.dart';
 import 'tester_invites_screen.dart';
 import 'tester_ratings_screen.dart';
+import 'test_swaps_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -315,6 +316,21 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
     }
   }
 
+  Future<void> _setOpenSwap(bool value) async {
+    setState(() => _saving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.appState.updateTesterProfile(openToSwap: value);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _editBio() async {
     final current = widget.appState.currentUser.testerBio;
     final result = await showModalBottomSheet<String>(
@@ -354,7 +370,9 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
 
     return GroupedSection(
       header: 'Testing',
-      footer: user.openToTest
+      footer: user.openToSwap
+          ? 'Creators can propose test-for-test swaps with you.'
+          : user.openToTest
           ? 'You appear when creators look for testers.'
           : 'Turn on to get invited to test apps.',
       children: [
@@ -374,6 +392,22 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
                 ),
         ),
         GroupedListTile(
+          icon: AppIcons.repeat,
+          title: 'Open to test-for-test',
+          subtitle: 'Swap testing with other creators',
+          showChevron: false,
+          trailing: _saving
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Switch.adaptive(
+                  value: user.openToSwap,
+                  onChanged: _setOpenSwap,
+                ),
+        ),
+        GroupedListTile(
           icon: AppIcons.star,
           title: 'Your ratings',
           subtitle: user.testerRatingLabel,
@@ -381,6 +415,17 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
             MaterialPageRoute(builder: (_) => const TesterRatingsScreen()),
           ),
         ),
+        if (user.openToSwap || widget.appState.pendingIncomingSwapCount > 0)
+          GroupedListTile(
+            icon: AppIcons.repeat,
+            title: 'Test-for-test swaps',
+            subtitle: widget.appState.pendingIncomingSwapCount > 0
+                ? '${widget.appState.pendingIncomingSwapCount} pending'
+                : 'View swap proposals',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TestSwapsScreen()),
+            ),
+          ),
         if (user.openToTest)
           GroupedListTile(
             icon: AppIcons.person,
@@ -404,7 +449,6 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
     );
   }
 }
-
 class _BioEditorSheet extends StatefulWidget {
   const _BioEditorSheet({required this.initialBio});
 

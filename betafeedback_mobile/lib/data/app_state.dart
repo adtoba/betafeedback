@@ -122,6 +122,7 @@ class AppState extends ChangeNotifier {
           loadNotifications(),
           loadSubscription(),
           loadTesterInvites(),
+          loadSwaps(),
         ]);
       } on ApiException {
         // Token invalid/expired or server unreachable — fall back to sign-in.
@@ -180,6 +181,7 @@ class AppState extends ChangeNotifier {
       loadNotifications(),
       loadSubscription(),
       loadTesterInvites(),
+      loadSwaps(),
     ]);
     _push.onForegroundMessage = loadNotifications;
     await Future.wait([
@@ -208,6 +210,8 @@ class AppState extends ChangeNotifier {
     _notifications = [];
     _testerInvites = [];
     _pendingTesterInvites = 0;
+    _swaps = [];
+    _pendingIncomingSwaps = 0;
     _subscription = null;
   }
 
@@ -749,11 +753,13 @@ class AppState extends ChangeNotifier {
 
   Future<void> updateTesterProfile({
     bool? openToTest,
+    bool? openToSwap,
     String? testerBio,
   }) async {
     final res =
         await _api.put('/v1/me/tester-profile', {
               'open_to_test': ?openToTest,
+              'open_to_swap': ?openToSwap,
               'tester_bio': ?testerBio,
             })
             as Map<String, dynamic>;
@@ -852,6 +858,91 @@ class AppState extends ChangeNotifier {
     return list
         .map((e) => TesterRating.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  // --- Test-for-test swaps ---
+
+  List<TestSwap> _swaps = [];
+  int _pendingIncomingSwaps = 0;
+
+  List<TestSwap> get swaps => List.unmodifiable(_swaps);
+  int get pendingIncomingSwapCount => _pendingIncomingSwaps;
+
+  Future<List<SwapPartner>> loadSwapPartners({
+    String? projectId,
+    String query = '',
+  }) async {
+    final params = <String, String>{
+      if (projectId != null && projectId.isNotEmpty) 'project_id': projectId,
+      if (query.trim().isNotEmpty) 'q': query.trim(),
+    };
+    final qs = params.entries
+        .map((e) => '${Uri.encodeQueryComponent(e.key)}='
+            '${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    final path = qs.isEmpty ? '/v1/swaps/partners' : '/v1/swaps/partners?$qs';
+    final res = await _api.get(path) as Map<String, dynamic>;
+    final list = (res['partners'] as List?) ?? const [];
+    return list
+        .map((e) => SwapPartner.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> loadSwaps() async {
+    final res = await _api.get('/v1/me/swaps') as Map<String, dynamic>;
+    final list = (res['swaps'] as List?) ?? const [];
+    _swaps = list
+        .map((e) => TestSwap.fromJson(e as Map<String, dynamic>))
+        .toList();
+    _pendingIncomingSwaps = (res['pending'] as num?)?.toInt() ??
+        _swaps
+            .where((s) => s.isPending && s.toUserId == _currentUser?.id)
+            .length;
+    notifyListeners();
+  }
+
+  Future<TestSwap> proposeSwap({
+    required String fromProjectId,
+    required String toProjectId,
+    String message = '',
+  }) async {
+    final res =
+        await _api.post('/v1/swaps', {
+              'from_project_id': fromProjectId,
+              'to_project_id': toProjectId,
+              if (message.isNotEmpty) 'message': message,
+            })
+            as Map<String, dynamic>;
+    final swap = TestSwap.fromJson(res);
+    await loadSwaps();
+    return swap;
+  }
+
+  Future<TestSwap> acceptSwap(String swapId) async {
+    final res =
+        await _api.post('/v1/me/swaps/$swapId/accept')
+            as Map<String, dynamic>;
+    final swap = TestSwap.fromJson(res);
+    await Future.wait([loadSwaps(), loadProjects()]);
+    return swap;
+  }
+
+  Future<TestSwap> declineSwap(String swapId) async {
+    final res =
+        await _api.post('/v1/me/swaps/$swapId/decline')
+            as Map<String, dynamic>;
+    final swap = TestSwap.fromJson(res);
+    await loadSwaps();
+    return swap;
+  }
+
+  Future<TestSwap> cancelSwap(String swapId) async {
+    final res =
+        await _api.post('/v1/me/swaps/$swapId/cancel')
+            as Map<String, dynamic>;
+    final swap = TestSwap.fromJson(res);
+    await loadSwaps();
+    return swap;
   }
 
   /// Downloads a CSV export (Pro). [type] is `bugs` or `feedback`.

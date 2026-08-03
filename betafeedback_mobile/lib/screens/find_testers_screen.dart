@@ -11,7 +11,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/metric_strip.dart';
 import '../widgets/status_pill.dart';
 
-/// Browse opted-in testers and invite them to [projectId].
+/// Browse opted-in testers and invite them to [projectId], or propose swaps.
 class FindTestersScreen extends StatefulWidget {
   const FindTestersScreen({
     super.key,
@@ -28,24 +28,34 @@ class FindTestersScreen extends StatefulWidget {
   State<FindTestersScreen> createState() => _FindTestersScreenState();
 }
 
-class _FindTestersScreenState extends State<FindTestersScreen> {
+class _FindTestersScreenState extends State<FindTestersScreen>
+    with SingleTickerProviderStateMixin {
   final _search = TextEditingController();
+  late final TabController _tabs;
   List<TesterProfile> _testers = [];
   List<TesterProfile> _top = [];
+  List<SwapPartner> _partners = [];
   bool _loading = true;
   String? _error;
   final _inviting = <String>{};
   final _invited = <String>{};
+  final _proposing = <String>{};
+  final _proposed = <String>{};
 
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(length: 2, vsync: this);
+    _tabs.addListener(() {
+      if (!_tabs.indexIsChanging) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   @override
   void dispose() {
     _search.dispose();
+    _tabs.dispose();
     super.dispose();
   }
 
@@ -62,11 +72,16 @@ class _FindTestersScreenState extends State<FindTestersScreen> {
           query: _search.text,
         ),
         appState.loadTopTesters(),
+        appState.loadSwapPartners(
+          projectId: widget.projectId,
+          query: _search.text,
+        ),
       ]);
       if (!mounted) return;
       setState(() {
-        _testers = results[0];
-        _top = results[1];
+        _testers = results[0] as List<TesterProfile>;
+        _top = results[1] as List<TesterProfile>;
+        _partners = results[2] as List<SwapPartner>;
         _loading = false;
       });
     } catch (e) {
@@ -140,16 +155,111 @@ class _FindTestersScreenState extends State<FindTestersScreen> {
     }
   }
 
+  Future<void> _proposeSwap(SwapPartner partner) async {
+    if (!partner.canPropose || _proposing.contains(partner.id)) return;
+
+    SwapProject? theirProject = partner.projects.length == 1
+        ? partner.projects.first
+        : null;
+    if (theirProject == null) {
+      theirProject = await showModalBottomSheet<SwapProject>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpace.gutter,
+                  AppSpace.lg,
+                  AppSpace.gutter,
+                  AppSpace.md,
+                ),
+                child: Text(
+                  'Which of ${partner.name}\'s projects will you test?',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              for (final project in partner.projects)
+                ListTile(
+                  title: Text(project.name),
+                  onTap: () => Navigator.of(sheetContext).pop(project),
+                ),
+              const SizedBox(height: AppSpace.md),
+            ],
+          ),
+        ),
+      );
+      if (theirProject == null || !mounted) return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Propose test-for-test?'),
+        content: Text(
+          'You\'ll invite ${partner.name} to test your project, and you\'ll '
+          'join ${theirProject!.name} as a tester when they accept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Propose'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _proposing.add(partner.id));
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await AppScope.of(context).proposeSwap(
+        fromProjectId: widget.projectId,
+        toProjectId: theirProject.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _proposing.remove(partner.id);
+        _proposed.add(partner.id);
+        _partners = [
+          for (final p in _partners)
+            if (p.id == partner.id) p.copyWith(swapPending: true) else p,
+        ];
+      });
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Swap proposed to ${partner.name}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _proposing.remove(partner.id));
+      messenger.showSnackBar(
+        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final onSwaps = _tabs.index == 1;
     final title = widget.projectName.isEmpty
-        ? 'Find testers'
-        : 'Find testers for ${widget.projectName}';
+        ? (onSwaps ? 'Test-for-test' : 'Find testers')
+        : (onSwaps
+              ? 'Swap for ${widget.projectName}'
+              : 'Find testers for ${widget.projectName}');
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.showSkip ? 'Find testers' : 'Find testers'),
+        title: Text(onSwaps ? 'Test-for-test' : 'Find testers'),
         actions: [
           if (widget.showSkip)
             TextButton(
@@ -157,6 +267,13 @@ class _FindTestersScreenState extends State<FindTestersScreen> {
               child: const Text('Skip'),
             ),
         ],
+        bottom: TabBar(
+          controller: _tabs,
+          tabs: const [
+            Tab(text: 'Invite'),
+            Tab(text: 'Swap'),
+          ],
+        ),
       ),
       body: AppLayout.adaptiveBody(
         context,
@@ -176,7 +293,10 @@ class _FindTestersScreenState extends State<FindTestersScreen> {
                   Text(title, style: theme.textTheme.titleMedium),
                   const SizedBox(height: AppSpace.xs),
                   Text(
-                    'Invite people who are open to testing apps on BetaFeedback.',
+                    onSwaps
+                        ? 'Propose a swap with creators who also need testers. '
+                              'You join theirs, they join yours.'
+                        : 'Invite people who are open to testing apps on BetaFeedback.',
                     style: theme.textTheme.bodySmall,
                   ),
                   const SizedBox(height: AppSpace.lg),
@@ -199,9 +319,74 @@ class _FindTestersScreenState extends State<FindTestersScreen> {
                 ],
               ),
             ),
-            Expanded(child: _body(theme)),
+            Expanded(
+              child: TabBarView(
+                controller: _tabs,
+                children: [
+                  _inviteBody(theme),
+                  _swapBody(theme),
+                ],
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _inviteBody(ThemeData theme) {
+    return _body(theme);
+  }
+
+  Widget _swapBody(ThemeData theme) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return AppErrorState(
+        icon: AppIcons.cloudOff,
+        title: 'Couldn\'t load partners',
+        message: _error!,
+        onRetry: _load,
+      );
+    }
+    if (_partners.isEmpty) {
+      final querying = _search.text.trim().isNotEmpty;
+      return AppEmptyState(
+        icon: AppIcons.repeat,
+        title: querying ? 'No matches' : 'No swap partners yet',
+        message: querying
+            ? 'No creators open to swaps match that search.'
+            : 'When other creators turn on test-for-test in their profile, '
+                  'they\'ll show up here.',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.gutter,
+          0,
+          AppSpace.gutter,
+          AppSpace.xxxl,
+        ),
+        itemCount: _partners.length,
+        separatorBuilder: (context, index) => const SizedBox(height: AppSpace.sm),
+        itemBuilder: (context, index) {
+          final partner = _partners[index];
+          final pending =
+              partner.swapPending || _proposed.contains(partner.id);
+          final proposing = _proposing.contains(partner.id);
+          return _PartnerTile(
+            partner: partner,
+            pending: pending,
+            proposing: proposing,
+            onPropose: partner.canPropose && !pending
+                ? () => _proposeSwap(partner)
+                : null,
+          );
+        },
       ),
     );
   }
@@ -598,6 +783,87 @@ class _Avatar extends StatelessWidget {
           color: Colors.white,
           fontSize: size * 0.36,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _PartnerTile extends StatelessWidget {
+  const _PartnerTile({
+    required this.partner,
+    required this.pending,
+    required this.proposing,
+    this.onPropose,
+  });
+
+  final SwapPartner partner;
+  final bool pending;
+  final bool proposing;
+  final VoidCallback? onPropose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final projectNames = partner.projects.map((p) => p.name).join(', ');
+
+    return Material(
+      color: theme.cardColor,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.md,
+          AppSpace.md,
+          AppSpace.sm,
+          AppSpace.md,
+        ),
+        child: Row(
+          children: [
+            _Avatar(name: partner.name, hue: partner.avatarHue, size: 44),
+            const SizedBox(width: AppSpace.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    partner.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  if (projectNames.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      projectNames,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: AppSpace.xs),
+                  Text(partner.ratingLabel, style: theme.textTheme.labelSmall),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpace.sm),
+            if (proposing)
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else if (onPropose != null)
+              FilledButton(
+                onPressed: onPropose,
+                child: const Text('Swap'),
+              )
+            else
+              StatusPill(
+                label: pending ? 'Proposed' : 'Unavailable',
+                color: scheme.onSurfaceVariant,
+              ),
+          ],
         ),
       ),
     );

@@ -16,6 +16,7 @@ import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'project_detail_screen.dart';
 import 'tester_invites_screen.dart';
+import 'test_swaps_screen.dart';
 
 enum _ProjectFilter { all, created, invited }
 
@@ -84,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             _NotificationsButton(appState: appState),
                             _TesterInvitesButton(appState: appState),
+                            _SwapsButton(appState: appState),
                             _AccountButton(appState: appState),
                           ],
                         ),
@@ -372,6 +374,35 @@ class _TesterInvitesButton extends StatelessWidget {
         backgroundColor: scheme.primary,
         label: Text('$pending'),
         child: Icon(AppIcons.mailOpen, color: scheme.onSurface),
+      ),
+    );
+  }
+}
+
+class _SwapsButton extends StatelessWidget {
+  const _SwapsButton({required this.appState});
+
+  final AppState appState;
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = appState.pendingIncomingSwapCount;
+    final scheme = Theme.of(context).colorScheme;
+    final open = appState.currentUser.openToSwap;
+
+    if (!open && pending == 0) return const SizedBox.shrink();
+
+    return HeaderIconButton(
+      tooltip: 'Test-for-test',
+      onPressed: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const TestSwapsScreen()),
+      ),
+      icon: AppIcons.repeat,
+      badge: Badge(
+        isLabelVisible: pending > 0,
+        backgroundColor: scheme.primary,
+        label: Text('$pending'),
+        child: Icon(AppIcons.repeat, color: scheme.onSurface),
       ),
     );
   }

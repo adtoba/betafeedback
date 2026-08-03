@@ -95,6 +95,7 @@ func (s *Server) createFeedback(w http.ResponseWriter, r *http.Request, userID s
 	// Draft a structured bug in the background; never block submission on it.
 	go s.autoStructureFeedback(feedback)
 	go s.emailNewFeedback(context.Background(), feedback.ProjectID, feedback)
+	go s.maybeFulfillSwaps(context.Background(), feedback.ProjectID, feedback.AuthorID)
 
 	writeJSON(w, http.StatusCreated, feedback)
 }

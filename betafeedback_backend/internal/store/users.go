@@ -10,14 +10,14 @@ import (
 )
 
 const userColumns = `id::text, email, name, avatar_hue, email_notifications, push_notifications,
-	open_to_test, tester_bio, created_at`
+	open_to_test, open_to_swap, tester_bio, created_at`
 
 func scanUser(row pgx.Row) (model.User, error) {
 	var u model.User
 	err := row.Scan(
 		&u.ID, &u.Email, &u.Name, &u.AvatarHue,
 		&u.EmailNotifications, &u.PushNotifications,
-		&u.OpenToTest, &u.TesterBio, &u.CreatedAt,
+		&u.OpenToTest, &u.OpenToSwap, &u.TesterBio, &u.CreatedAt,
 	)
 	return u, err
 }
@@ -91,12 +91,12 @@ func (s *Store) SetPushNotifications(ctx context.Context, userID string, enabled
 	return u, nil
 }
 
-// UpdateTesterProfile sets marketplace opt-in and bio for the current user.
-func (s *Store) UpdateTesterProfile(ctx context.Context, userID string, openToTest bool, bio string) (model.User, error) {
+// UpdateTesterProfile sets marketplace opt-in, swap opt-in, and bio for the current user.
+func (s *Store) UpdateTesterProfile(ctx context.Context, userID string, openToTest, openToSwap bool, bio string) (model.User, error) {
 	row := s.pool.QueryRow(ctx, `
-		UPDATE users SET open_to_test = $2, tester_bio = $3 WHERE id = $1
+		UPDATE users SET open_to_test = $2, open_to_swap = $3, tester_bio = $4 WHERE id = $1
 		RETURNING `+userColumns+`
-	`, userID, openToTest, bio)
+	`, userID, openToTest, openToSwap, bio)
 	u, err := scanUser(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.User{}, ErrNotFound
@@ -113,7 +113,7 @@ func (s *Store) UpdateTesterProfile(ctx context.Context, userID string, openToTe
 func (s *Store) ListProEmailRecipients(ctx context.Context, projectID string) ([]model.User, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT u.id::text, u.email, u.name, u.avatar_hue, u.email_notifications, u.push_notifications,
-		       u.open_to_test, u.tester_bio, u.created_at
+		       u.open_to_test, u.open_to_swap, u.tester_bio, u.created_at
 		FROM project_members m
 		JOIN users u ON u.id = m.user_id
 		JOIN subscriptions s ON s.user_id = u.id AND s.plan = 'pro'

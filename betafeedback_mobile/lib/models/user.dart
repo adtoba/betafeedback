@@ -23,6 +23,7 @@ class User {
     this.emailNotifications = false,
     this.pushNotifications = true,
     this.openToTest = false,
+    this.openToSwap = false,
     this.testerBio = '',
     this.testerRatingAvg = 0,
     this.testerRatingCount = 0,
@@ -39,6 +40,7 @@ class User {
   final bool emailNotifications;
   final bool pushNotifications;
   final bool openToTest;
+  final bool openToSwap;
   final String testerBio;
   final double testerRatingAvg;
   final int testerRatingCount;
@@ -68,6 +70,7 @@ class User {
       emailNotifications: json['email_notifications'] as bool? ?? false,
       pushNotifications: json['push_notifications'] as bool? ?? true,
       openToTest: json['open_to_test'] as bool? ?? false,
+      openToSwap: json['open_to_swap'] as bool? ?? false,
       testerBio: json['tester_bio'] as String? ?? '',
       testerRatingAvg: (json['tester_rating_avg'] as num?)?.toDouble() ?? 0,
       testerRatingCount: (json['tester_rating_count'] as num?)?.toInt() ?? 0,
@@ -83,6 +86,7 @@ class User {
     bool? emailNotifications,
     bool? pushNotifications,
     bool? openToTest,
+    bool? openToSwap,
     String? testerBio,
     double? testerRatingAvg,
     int? testerRatingCount,
@@ -96,6 +100,7 @@ class User {
       emailNotifications: emailNotifications ?? this.emailNotifications,
       pushNotifications: pushNotifications ?? this.pushNotifications,
       openToTest: openToTest ?? this.openToTest,
+      openToSwap: openToSwap ?? this.openToSwap,
       testerBio: testerBio ?? this.testerBio,
       testerRatingAvg: testerRatingAvg ?? this.testerRatingAvg,
       testerRatingCount: testerRatingCount ?? this.testerRatingCount,

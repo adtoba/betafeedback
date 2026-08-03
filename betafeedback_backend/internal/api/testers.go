@@ -20,6 +20,7 @@ func conflictMessage(err error) string {
 
 type updateTesterProfileRequest struct {
 	OpenToTest *bool   `json:"open_to_test"`
+	OpenToSwap *bool   `json:"open_to_swap"`
 	TesterBio  *string `json:"tester_bio"`
 }
 
@@ -29,7 +30,7 @@ func (s *Server) updateTesterProfile(w http.ResponseWriter, r *http.Request, use
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.OpenToTest == nil && req.TesterBio == nil {
+	if req.OpenToTest == nil && req.OpenToSwap == nil && req.TesterBio == nil {
 		writeError(w, http.StatusBadRequest, "no tester profile fields provided")
 		return
 	}
@@ -45,9 +46,13 @@ func (s *Server) updateTesterProfile(w http.ResponseWriter, r *http.Request, use
 	}
 
 	open := user.OpenToTest
+	openSwap := user.OpenToSwap
 	bio := user.TesterBio
 	if req.OpenToTest != nil {
 		open = *req.OpenToTest
+	}
+	if req.OpenToSwap != nil {
+		openSwap = *req.OpenToSwap
 	}
 	if req.TesterBio != nil {
 		bio = strings.TrimSpace(*req.TesterBio)
@@ -57,7 +62,7 @@ func (s *Server) updateTesterProfile(w http.ResponseWriter, r *http.Request, use
 		}
 	}
 
-	user, err = s.store.UpdateTesterProfile(r.Context(), userID, open, bio)
+	user, err = s.store.UpdateTesterProfile(r.Context(), userID, open, openSwap, bio)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "user not found")

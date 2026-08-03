@@ -11,6 +11,7 @@ type User struct {
 	EmailNotifications bool      `json:"email_notifications"`
 	PushNotifications  bool      `json:"push_notifications"`
 	OpenToTest         bool      `json:"open_to_test"`
+	OpenToSwap         bool      `json:"open_to_swap"`
 	TesterBio          string    `json:"tester_bio"`
 	TesterRatingAvg    float64   `json:"tester_rating_avg"`
 	TesterRatingCount  int       `json:"tester_rating_count"`
@@ -47,6 +48,46 @@ type TesterInvitation struct {
 	Status             string     `json:"status"`
 	CreatedAt          time.Time  `json:"created_at"`
 	RespondedAt        *time.Time `json:"responded_at,omitempty"`
+}
+
+// SwapProject is a compact project card shown on swap partners / swaps.
+type SwapProject struct {
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	LogoURL *string `json:"logo_url,omitempty"`
+}
+
+// SwapPartner is a creator open to test-for-test swaps.
+type SwapPartner struct {
+	ID             string        `json:"id"`
+	Name           string        `json:"name"`
+	Email          string        `json:"email"`
+	AvatarHue      int           `json:"avatar_hue"`
+	TesterBio      string        `json:"tester_bio"`
+	RatingAvg      float64       `json:"rating_avg"`
+	RatingCount    int           `json:"rating_count"`
+	Projects       []SwapProject `json:"projects"`
+	SwapPending    bool          `json:"swap_pending,omitempty"`
+}
+
+// TestSwap is a paired reciprocal-testing proposal between two creators.
+type TestSwap struct {
+	ID              string     `json:"id"`
+	FromUserID      string     `json:"from_user_id"`
+	FromUserName    string     `json:"from_user_name"`
+	ToUserID        string     `json:"to_user_id"`
+	ToUserName      string     `json:"to_user_name"`
+	FromProjectID   string     `json:"from_project_id"`
+	FromProjectName string     `json:"from_project_name"`
+	FromProjectLogo *string    `json:"from_project_logo_url,omitempty"`
+	ToProjectID     string     `json:"to_project_id"`
+	ToProjectName   string     `json:"to_project_name"`
+	ToProjectLogo   *string    `json:"to_project_logo_url,omitempty"`
+	Message         string     `json:"message"`
+	Status          string     `json:"status"`
+	CreatedAt       time.Time  `json:"created_at"`
+	RespondedAt     *time.Time `json:"responded_at,omitempty"`
+	FulfilledAt     *time.Time `json:"fulfilled_at,omitempty"`
 }
 
 // TesterRating is a creator's score for a tester on a specific project.
