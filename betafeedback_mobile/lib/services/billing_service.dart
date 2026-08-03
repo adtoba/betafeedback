@@ -29,6 +29,16 @@ class BillingService {
     await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.info);
     await Purchases.configure(PurchasesConfiguration(apiKey));
     _configured = true;
+    debugPrint('RevenueCat: configured for $_platformLabel');
+
+    // Surface empty offerings early in debug logs (common setup miss).
+    if (kDebugMode) {
+      try {
+        await diagnoseOfferings();
+      } catch (e) {
+        debugPrint('RevenueCat: offerings check failed: $e');
+      }
+    }
   }
 
   /// Links the store / RevenueCat customer to our backend user id.
@@ -54,6 +64,56 @@ class BillingService {
     }
   }
 
+  /// Logs offering / package state. Call from debug builds or when diagnosing
+  /// empty products. Returns a short human-readable summary.
+  Future<String> diagnoseOfferings() async {
+    if (!_configured) {
+      return 'RevenueCat not configured (missing/placeholder API key in .env).';
+    }
+
+    final offerings = await Purchases.getOfferings();
+    final current = offerings.current;
+    final allIds = offerings.all.keys.toList()..sort();
+
+    final buffer = StringBuffer()
+      ..writeln('RevenueCat offerings:')
+      ..writeln('  all: ${allIds.isEmpty ? '(none)' : allIds.join(', ')}')
+      ..writeln('  current: ${current?.identifier ?? '(none)'}');
+
+    if (current != null) {
+      final packages = current.availablePackages;
+      buffer.writeln('  packages: ${packages.length}');
+      for (final p in packages) {
+        buffer.writeln(
+          '    - ${p.identifier} (${p.packageType.name}) '
+          '→ ${p.storeProduct.identifier} '
+          '${p.storeProduct.priceString}',
+        );
+      }
+      if (packages.isEmpty) {
+        buffer.writeln(
+          '  ⚠ Current offering has no packages the store can resolve.\n'
+          '    In RevenueCat → Offerings → Current → add a Monthly package\n'
+          '    linked to an App Store product (e.g. pro_monthly), then\n'
+          '    attach that product to entitlement `pro`.',
+        );
+      }
+    } else if (allIds.isEmpty) {
+      buffer.writeln(
+        '  ⚠ No offerings at all. Create one in RevenueCat, add packages\n'
+        '    with App Store products, and mark it Current.',
+      );
+    } else {
+      buffer.writeln(
+        '  ⚠ Offerings exist but none is Current. Mark one as Current.',
+      );
+    }
+
+    final summary = buffer.toString().trimRight();
+    debugPrint(summary);
+    return summary;
+  }
+
   /// Purchases the Pro package from the current offering.
   /// Returns true when Pro entitlement is active after the purchase.
   Future<bool> purchasePro() async {
@@ -67,8 +127,10 @@ class BillingService {
     final offerings = await Purchases.getOfferings();
     final offering = offerings.current;
     if (offering == null) {
+      await diagnoseOfferings();
       throw StateError(
-        'No current offering in RevenueCat. Mark an offering as Current.',
+        'No current offering in RevenueCat. Create an offering, add a '
+        'Monthly package with an App Store product, and mark it Current.',
       );
     }
 
@@ -79,7 +141,12 @@ class BillingService {
             ? offering.availablePackages.first
             : null);
     if (package == null) {
-      throw StateError('No Pro packages available in the current offering.');
+      await diagnoseOfferings();
+      throw StateError(
+        'Current offering "${offering.identifier}" has no store packages. '
+        'In RevenueCat, attach an App Store product (e.g. pro_monthly) to a '
+        'Monthly package on that offering. See docs/REVENUECAT_SETUP.md.',
+      );
     }
 
     try {
@@ -122,13 +189,33 @@ class BillingService {
     return active != null;
   }
 
+  String get _platformLabel {
+    if (Platform.isIOS) return 'iOS';
+    if (Platform.isMacOS) return 'macOS';
+    if (Platform.isAndroid) return 'Android';
+    return 'unknown';
+  }
+
   String? get _platformApiKey {
-    if (Platform.isIOS || Platform.isMacOS) {
-      return ApiConfig.revenueCatIosApiKey;
+    final raw = Platform.isIOS || Platform.isMacOS
+        ? ApiConfig.revenueCatIosApiKey
+        : Platform.isAndroid
+        ? ApiConfig.revenueCatAndroidApiKey
+        : null;
+    return _usableApiKey(raw);
+  }
+
+  /// Treats placeholders like `goog_…` / `appl_xxx` as unset.
+  static String? _usableApiKey(String? raw) {
+    if (raw == null) return null;
+    final key = raw.trim();
+    if (key.isEmpty) return null;
+    if (key.contains('…') || key.contains('...')) return null;
+    if (key.endsWith('_xxx') || key.contains('your_') || key.contains('YOUR_')) {
+      return null;
     }
-    if (Platform.isAndroid) {
-      return ApiConfig.revenueCatAndroidApiKey;
-    }
-    return null;
+    // Real RC public keys are appl_… / goog_… / amzn_… / strp_… with entropy.
+    if (key.length < 20) return null;
+    return key;
   }
 }

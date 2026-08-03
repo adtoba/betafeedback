@@ -63,13 +63,40 @@ Use the exact same Authorization string RevenueCat sends.
 Users are identified by BetaFeedback user UUID (`Purchases.logIn(userId)` after
 sign-in). Webhooks update plan / status / renews_on.
 
-## 5. Local testing tips
+## 5. “No App Store products registered” / empty offerings
+
+If Xcode / Flutter logs say:
+
+> You have configured the SDK with an App Store API key, but there are no App
+> Store products registered in the RevenueCat dashboard for your offerings.
+
+the **SDK key is fine**. The Current offering has no **App Store** product on
+its packages. Fix in the dashboard (not in app code):
+
+1. **App Store Connect** → Subscriptions → create `pro_monthly` (or your id),
+   fill localization + price + review screenshot until status is at least
+   **Ready to Submit**. Sign Paid Apps Agreement + tax/banking.
+2. **RevenueCat → Apps** → iOS app bundle `com.betafeedback.app` → connect
+   App Store Connect API / In-App Purchase key.
+3. **Product catalog** → add/import that same product id as an **App Store**
+   product (not Play-only).
+4. **Entitlements** → `pro` → attach that product.
+5. **Offerings** → `default` (or similar) → **Add package** → type **Monthly**
+   → select the App Store product → **Make current**.
+
+Verify: Offerings → Current → package row must show an **App Store** product
+id. If that column is blank, the SDK warning will keep appearing.
+
+On a debug run, `BillingService` prints an offerings dump at startup
+(`RevenueCat offerings:`). You want `current:` set and `packages: ≥ 1`.
+
+## 6. Local testing tips
 
 | Scenario | How |
 |----------|-----|
 | No RC keys | Dev stub `changePlan` / upgrade sheet still works against local API |
-| iOS sandbox | Sandbox Apple ID on a device / TestFlight |
-| Android | License testers in Play Console |
+| iOS sandbox | Physical device + Sandbox Apple ID (Settings → App Store → Sandbox) |
+| Android | License testers in Play Console + real `goog_…` key (not a placeholder) |
 | Webhook locally | [ngrok](https://ngrok.com) → `https://xxx.ngrok.io/v1/webhooks/revenuecat` |
 
 ## Event → plan mapping
