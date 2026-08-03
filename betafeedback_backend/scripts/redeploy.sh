@@ -38,8 +38,23 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
 }
 
+# Non-interactive SSH sessions often skip ~/.bashrc, so Go may not be on PATH.
+ensure_go() {
+  if command -v go >/dev/null 2>&1; then
+    return
+  fi
+  for candidate in /usr/local/go/bin "$HOME/go/bin" /usr/lib/go/bin; do
+    if [[ -x "${candidate}/go" ]]; then
+      export PATH="${candidate}:$PATH"
+      log "using go from ${candidate}"
+      return
+    fi
+  done
+  die "missing required command: go (install from https://go.dev/dl/ or add it to PATH)"
+}
+
 require_cmd git
-require_cmd go
+ensure_go
 require_cmd systemctl
 require_cmd curl
 
