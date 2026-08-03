@@ -61,11 +61,22 @@ fi
 log "running remote redeploy over SSH"
 ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "${DEPLOY_HOST}" \
   "set -euo pipefail
-   cd '${DEPLOY_PATH}'
-   export BRANCH='${BRANCH}'
-   if [[ ! -x scripts/redeploy.sh ]]; then
-     chmod +x scripts/redeploy.sh
+   if [[ ! -d '${DEPLOY_PATH}' ]]; then
+     echo \"error: DEPLOY_PATH does not exist on server: ${DEPLOY_PATH}\" >&2
+     exit 1
    fi
+   cd '${DEPLOY_PATH}'
+   REPO_ROOT=\$(git rev-parse --show-toplevel)
+   echo \"=> remote repo: \$REPO_ROOT\"
+   echo \"=> pulling origin/${BRANCH}\"
+   git -C \"\$REPO_ROOT\" fetch --prune origin
+   git -C \"\$REPO_ROOT\" pull --ff-only origin '${BRANCH}'
+   if [[ ! -f scripts/redeploy.sh ]]; then
+     echo \"error: scripts/redeploy.sh still missing after pull in ${DEPLOY_PATH}\" >&2
+     exit 1
+   fi
+   chmod +x scripts/redeploy.sh
+   export BRANCH='${BRANCH}'
    ./scripts/redeploy.sh"
 
 log "deploy finished"
