@@ -16,11 +16,11 @@ class Release {
   final DateTime createdAt;
 
   factory Release.fromJson(Map<String, dynamic> json) => Release(
-        id: json['id'] as String,
-        projectId: json['project_id'] as String,
-        version: json['version'] as String? ?? '',
-        notes: json['notes'] as String?,
-        postedBy: json['posted_by'] as String? ?? '',
-        createdAt: DateTime.parse(json['created_at'] as String),
-      );
+    id: json['id'] as String,
+    projectId: json['project_id'] as String,
+    version: json['version'] as String? ?? '',
+    notes: json['notes'] as String?,
+    postedBy: json['posted_by'] as String? ?? '',
+    createdAt: DateTime.parse(json['created_at'] as String),
+  );
 }

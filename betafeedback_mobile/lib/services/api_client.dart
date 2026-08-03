@@ -24,8 +24,8 @@ class ApiException implements Exception {
 /// `{"error": "..."}` message on failure.
 class ApiClient {
   ApiClient({http.Client? client, String? baseUrl})
-      : _client = client ?? http.Client(),
-        baseUrl = baseUrl ?? ApiConfig.baseUrl;
+    : _client = client ?? http.Client(),
+      baseUrl = baseUrl ?? ApiConfig.baseUrl;
 
   final http.Client _client;
   final String baseUrl;
@@ -34,10 +34,13 @@ class ApiClient {
   void setToken(String? token) => _token = token;
 
   Future<dynamic> get(String path) => _send('GET', path);
-  Future<dynamic> post(String path, [Object? body]) => _send('POST', path, body);
+  Future<dynamic> post(String path, [Object? body]) =>
+      _send('POST', path, body);
   Future<dynamic> put(String path, [Object? body]) => _send('PUT', path, body);
-  Future<dynamic> patch(String path, [Object? body]) => _send('PATCH', path, body);
-  Future<dynamic> delete(String path) => _send('DELETE', path);
+  Future<dynamic> patch(String path, [Object? body]) =>
+      _send('PATCH', path, body);
+  Future<dynamic> delete(String path, [Object? body]) =>
+      _send('DELETE', path, body);
 
   /// GET that returns the raw response body (for CSV exports, etc.).
   Future<String> downloadText(String path) async {
@@ -78,12 +81,14 @@ class ApiClient {
     if (_token != null) {
       request.headers['Authorization'] = 'Bearer $_token';
     }
-    request.files.add(http.MultipartFile.fromBytes(
-      'file',
-      bytes,
-      filename: filename,
-      contentType: contentType == null ? null : MediaType.parse(contentType),
-    ));
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+        contentType: contentType == null ? null : MediaType.parse(contentType),
+      ),
+    );
 
     http.Response response;
     try {

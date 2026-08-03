@@ -14,7 +14,8 @@ abstract final class AppLayout {
   /// Max width for auth and narrow flows.
   static const double narrowMaxWidth = 420;
 
-  static double widthOf(BuildContext context) => MediaQuery.sizeOf(context).width;
+  static double widthOf(BuildContext context) =>
+      MediaQuery.sizeOf(context).width;
 
   static bool isTablet(BuildContext context) =>
       widthOf(context) >= tabletBreakpoint;
@@ -32,14 +33,6 @@ abstract final class AppLayout {
       return 32;
     }
     return 0;
-  }
-
-  /// Grid tile width cap — allows more columns as the window grows.
-  static double projectGridMaxExtent(BuildContext context) {
-    final width = widthOf(context);
-    if (width >= expandedBreakpoint) return 260;
-    if (width >= tabletBreakpoint) return 240;
-    return 220;
   }
 
   /// Centers and constrains [child] on tablet+ screens.

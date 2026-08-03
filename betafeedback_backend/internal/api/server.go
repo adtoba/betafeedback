@@ -9,6 +9,7 @@ import (
 
 	"github.com/adetoba/betafeedback_backend/internal/config"
 	"github.com/adetoba/betafeedback_backend/internal/mail"
+	"github.com/adetoba/betafeedback_backend/internal/push"
 	"github.com/adetoba/betafeedback_backend/internal/store"
 	"github.com/adetoba/betafeedback_backend/internal/structurer"
 )
@@ -21,9 +22,18 @@ type Server struct {
 	otp        *otpStore
 	structurer *structurer.Service
 	mailer     *mail.Sender
+	pusher     *push.Sender
 }
 
 func NewServer(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) *Server {
+	pusher, err := push.NewSender(push.Config{
+		CredentialsPath: cfg.FirebaseCredentialsPath,
+	}, logger)
+	if err != nil {
+		logger.Error("fcm init failed; push disabled", "err", err)
+		pusher, _ = push.NewSender(push.Config{}, logger)
+	}
+
 	return &Server{
 		cfg:    cfg,
 		store:  store.New(pool, cfg.AppBaseURL),
@@ -41,6 +51,7 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) *Serv
 			Password: cfg.SMTPPassword,
 			From:     cfg.SMTPFrom,
 		}, logger),
+		pusher: pusher,
 	}
 }
 
@@ -57,12 +68,24 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("GET /v1/me", s.requireAuth(s.getMe))
 	mux.HandleFunc("PUT /v1/me/preferences", s.requireAuth(s.updatePreferences))
+	mux.HandleFunc("PUT /v1/me/tester-profile", s.requireAuth(s.updateTesterProfile))
+	mux.HandleFunc("GET /v1/me/tester-invites", s.requireAuth(s.listMyTesterInvites))
+	mux.HandleFunc("POST /v1/me/tester-invites/{inviteId}/accept", s.requireAuth(s.acceptTesterInvite))
+	mux.HandleFunc("POST /v1/me/tester-invites/{inviteId}/decline", s.requireAuth(s.declineTesterInvite))
+	mux.HandleFunc("POST /v1/devices", s.requireAuth(s.registerDevice))
+	mux.HandleFunc("DELETE /v1/devices", s.requireAuth(s.unregisterDevice))
+
+	mux.HandleFunc("GET /v1/testers", s.requireAuth(s.listTesters))
+	mux.HandleFunc("GET /v1/testers/top", s.requireAuth(s.listTopTesters))
 
 	mux.HandleFunc("GET /v1/projects", s.requireAuth(s.listProjects))
 	mux.HandleFunc("POST /v1/projects", s.requireAuth(s.createProject))
 	mux.HandleFunc("GET /v1/projects/{id}", s.requireAuth(s.getProject))
 	mux.HandleFunc("PATCH /v1/projects/{id}", s.requireAuth(s.updateProject))
 	mux.HandleFunc("POST /v1/projects/{id}/members", s.requireAuth(s.addMember))
+	mux.HandleFunc("POST /v1/projects/{id}/tester-invites", s.requireAuth(s.createTesterInvite))
+	mux.HandleFunc("GET /v1/projects/{id}/tester-invites", s.requireAuth(s.listProjectTesterInvites))
+	mux.HandleFunc("POST /v1/projects/{id}/testers/{userId}/ratings", s.requireAuth(s.rateTester))
 
 	mux.HandleFunc("GET /v1/projects/{id}/feedback", s.requireAuth(s.listFeedback))
 	mux.HandleFunc("POST /v1/projects/{id}/feedback", s.requireAuth(s.createFeedback))
@@ -93,6 +116,9 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("GET /v1/me/subscription", s.requireAuth(s.getSubscription))
 	mux.HandleFunc("PUT /v1/me/subscription", s.requireAuth(s.updateSubscription))
+
+	// RevenueCat billing webhooks (auth via REVENUECAT_WEBHOOK_AUTH header).
+	mux.HandleFunc("POST /v1/webhooks/revenuecat", s.revenueCatWebhook)
 
 	// Public invite summary, consumed by the marketing site's /join page.
 	mux.HandleFunc("GET /v1/invites/{code}", s.getInvite)

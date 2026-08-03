@@ -23,22 +23,22 @@ class Screenshot {
   bool get hasMedia => url != null && url!.isNotEmpty;
 
   factory Screenshot.fromJson(Map<String, dynamic> json) => Screenshot(
-        label: json['label'] as String? ?? '',
-        hue: (json['hue'] as num?)?.toInt() ?? 200,
-        url: (json['url'] as String?)?.isEmpty ?? true
-            ? null
-            : json['url'] as String,
-        contentType: (json['content_type'] as String?)?.isEmpty ?? true
-            ? null
-            : json['content_type'] as String,
-      );
+    label: json['label'] as String? ?? '',
+    hue: (json['hue'] as num?)?.toInt() ?? 200,
+    url: (json['url'] as String?)?.isEmpty ?? true
+        ? null
+        : json['url'] as String,
+    contentType: (json['content_type'] as String?)?.isEmpty ?? true
+        ? null
+        : json['content_type'] as String,
+  );
 
   Map<String, dynamic> toJson() => {
-        'label': label,
-        'hue': hue,
-        if (url != null) 'url': url,
-        if (contentType != null) 'content_type': contentType,
-      };
+    'label': label,
+    'hue': hue,
+    if (url != null) 'url': url,
+    if (contentType != null) 'content_type': contentType,
+  };
 }
 
 class FeedbackComment {
@@ -130,12 +130,12 @@ class StructuredBug {
   }
 
   Map<String, dynamic> toUpdateJson() => {
-        'title': title,
-        'steps': stepsToReproduce,
-        'expected': expectedBehavior,
-        'actual': actualBehavior,
-        'severity': severity,
-      };
+    'title': title,
+    'steps': stepsToReproduce,
+    'expected': expectedBehavior,
+    'actual': actualBehavior,
+    'severity': severity,
+  };
 }
 
 class FeedbackMessage {
@@ -191,11 +191,13 @@ class FeedbackMessage {
       device: json['device'] as String?,
       appVersion: json['app_version'] as String?,
       platform: json['platform'] as String?,
-      screenshots: (json['screenshots'] as List?)
+      screenshots:
+          (json['screenshots'] as List?)
               ?.map((e) => Screenshot.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
-      comments: (json['comments'] as List?)
+      comments:
+          (json['comments'] as List?)
               ?.map((e) => FeedbackComment.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],

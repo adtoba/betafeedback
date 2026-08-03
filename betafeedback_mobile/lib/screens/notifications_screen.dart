@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_icons.dart';
+import '../theme/app_layout.dart';
+import '../theme/app_tokens.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/grouped_list.dart';
 
 import '../app/app_scope.dart';
 import '../models/app_notification.dart';
@@ -36,23 +40,38 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
         return Scaffold(
           appBar: AppBar(title: const Text('Notifications')),
-          body: items.isEmpty
-              ? _Empty()
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) => _NotificationTile(
-                    notification: items[index],
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ProjectDetailScreen(
-                          projectId: items[index].projectId,
+          body: AppLayout.adaptiveBody(
+            context,
+            items.isEmpty
+                ? const AppEmptyState(
+                    icon: AppIcons.bell,
+                    title: "You're all caught up",
+                    message:
+                        'Release announcements and project updates land '
+                        'here as they happen.',
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpace.gutter,
+                      AppSpace.md,
+                      AppSpace.gutter,
+                      AppSpace.xxl,
+                    ),
+                    itemCount: items.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: AppSpace.sm),
+                    itemBuilder: (context, index) => _NotificationTile(
+                      notification: items[index],
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProjectDetailScreen(
+                            projectId: items[index].projectId,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
+          ),
         );
       },
     );
@@ -69,75 +88,60 @@ class _NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tint = switch (notification.kind) {
+      NotificationKind.release => scheme.tertiary,
+    };
 
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      leading: Container(
-        width: 42,
-        height: 42,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: scheme.primary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(_iconFor(notification.kind), color: scheme.primary, size: 22),
-      ),
-      title: Text(
-        notification.title,
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Text(
-          notification.body,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: scheme.onSurfaceVariant,
-            height: 1.35,
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpace.md + 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconTile(icon: _iconFor(notification.kind), tint: tint, size: 34),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title,
+                            style: theme.textTheme.titleSmall,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpace.sm),
+                        Text(
+                          formatRelativeTime(notification.createdAt),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpace.xxs + 1),
+                    Text(
+                      notification.body,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
-      ),
-      trailing: Text(
-        formatRelativeTime(notification.createdAt),
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: scheme.onSurfaceVariant,
         ),
       ),
     );
   }
 
   IconData _iconFor(NotificationKind kind) => switch (kind) {
-        NotificationKind.release => AppIcons.rocket,
-      };
-}
-
-class _Empty extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(AppIcons.bell,
-                size: 56, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
-            Text("You're all caught up", style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              'Release announcements and project updates will appear here.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    NotificationKind.release => AppIcons.rocket,
+  };
 }

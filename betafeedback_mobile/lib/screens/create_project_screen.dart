@@ -8,9 +8,13 @@ import '../models/project.dart';
 import '../models/project_platform.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_layout.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/grouped_list.dart';
 import '../widgets/plan_picker_sheet.dart';
 import '../widgets/project_logo.dart';
+import 'find_testers_screen.dart';
 
 class CreateProjectScreen extends StatefulWidget {
   const CreateProjectScreen({super.key});
@@ -85,12 +89,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   Future<void> _pickLogo() async {
     final appState = AppScope.of(context);
     if (!appState.isPro) {
-      showPlanPickerSheet(
-        context,
-        title: 'Pro feature',
-        currentPlan: appState.currentSubscription.plan,
-        onSelect: (plan) => appState.changePlan(plan),
-      );
+      showUpgradeSheet(context, appState, title: 'Pro feature');
       return;
     }
     final file = await ImagePicker().pickImage(
@@ -133,7 +132,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _submitting = true);
     try {
-      await AppScope.of(context).createProject(
+      final project = await AppScope.of(context).createProject(
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         platformLinks: _collectPlatformLinks(),
@@ -141,7 +140,17 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
         logoFilename: _logoFilename,
         logoContentType: _logoContentType,
       );
+      if (!mounted) return;
       navigator.pop();
+      await navigator.push(
+        MaterialPageRoute(
+          builder: (_) => FindTestersScreen(
+            projectId: project.id,
+            projectName: project.name,
+            showSkip: true,
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -205,44 +214,47 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
               children: [
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(0, 20, 0, 16),
+                    padding: const EdgeInsets.fromLTRB(0, AppSpace.lg, 0, 0),
                     children: [
+                      _StepProgress(currentStep: _step, steps: _steps),
+                      const SizedBox(height: AppSpace.xl),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpace.gutter + AppSpace.xs,
+                        ),
                         child: _StepHeader(
                           title: meta.title,
                           subtitle: meta.subtitle,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      _StepStrip(currentStep: _step, steps: _steps),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpace.xxl),
                       AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
+                        duration: AppDuration.medium,
                         switchInCurve: Curves.easeOut,
                         switchOutCurve: Curves.easeIn,
                         child: KeyedSubtree(
                           key: ValueKey(_step),
                           child: switch (_step) {
                             0 => _BasicsStep(
-                                nameController: _nameController,
-                                descriptionController: _descriptionController,
-                                logoBytes: _logoBytes,
-                                onPickLogo: _pickLogo,
-                                onClearLogo: _clearLogo,
-                              ),
+                              nameController: _nameController,
+                              descriptionController: _descriptionController,
+                              logoBytes: _logoBytes,
+                              onPickLogo: _pickLogo,
+                              onClearLogo: _clearLogo,
+                            ),
                             1 => _PlatformsStep(
-                                selectedPlatforms: _selectedPlatforms,
-                                onToggle: _togglePlatform,
-                              ),
+                              selectedPlatforms: _selectedPlatforms,
+                              onToggle: _togglePlatform,
+                            ),
                             _ => _LinksStep(
-                                selectedPlatforms: _selectedPlatforms,
-                                linkControllers: _linkControllers,
-                                validateUrl: _validateUrl,
-                              ),
+                              selectedPlatforms: _selectedPlatforms,
+                              linkControllers: _linkControllers,
+                              validateUrl: _validateUrl,
+                            ),
                           },
                         ),
                       ),
+                      const SizedBox(height: AppSpace.xxl),
                     ],
                   ),
                 ),
@@ -274,120 +286,55 @@ class _StepMeta {
   final String subtitle;
 }
 
-/// Segmented step progress — active step highlighted, completed steps checked.
-class _StepStrip extends StatelessWidget {
-  const _StepStrip({required this.currentStep, required this.steps});
+/// Progress as a hairline track split into one segment per step, with the step
+/// name spelled out — quieter than numbered dots and it scales to any count.
+class _StepProgress extends StatelessWidget {
+  const _StepProgress({required this.currentStep, required this.steps});
 
   final int currentStep;
   final List<_StepMeta> steps;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          for (var i = 0; i < steps.length; i++) ...[
-            if (i > 0)
-              Expanded(
-                child: Container(
-                  height: 2,
-                  margin: const EdgeInsets.only(bottom: 22),
-                  color: i <= currentStep
-                      ? scheme.primary
-                      : scheme.outlineVariant.withValues(alpha: 0.45),
-                ),
-              ),
-            _StepDot(
-              index: i,
-              label: steps[i].label,
-              isActive: i == currentStep,
-              isComplete: i < currentStep,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _StepDot extends StatelessWidget {
-  const _StepDot({
-    required this.index,
-    required this.label,
-    required this.isActive,
-    required this.isComplete,
-  });
-
-  final int index;
-  final String label;
-  final bool isActive;
-  final bool isComplete;
-
-  @override
-  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tones = AppTones.of(context);
 
-    final Color fill;
-    final Color border;
-    final Color labelColor;
-    Widget center;
-
-    if (isComplete) {
-      fill = scheme.primary;
-      border = scheme.primary;
-      labelColor = scheme.onSurface;
-      center = Icon(AppIcons.check, size: 14, color: scheme.onPrimary);
-    } else if (isActive) {
-      fill = scheme.primary;
-      border = scheme.primary;
-      labelColor = scheme.onSurface;
-      center = Text(
-        '${index + 1}',
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: scheme.onPrimary,
-          fontWeight: FontWeight.w700,
-        ),
-      );
-    } else {
-      fill = scheme.surfaceContainerHighest;
-      border = scheme.outlineVariant.withValues(alpha: 0.6);
-      labelColor = scheme.onSurfaceVariant;
-      center = Text(
-        '${index + 1}',
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: scheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
-        ),
-      );
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: fill,
-            shape: BoxShape.circle,
-            border: Border.all(color: border, width: isActive ? 0 : 1.5),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.gutter + AppSpace.xs,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              for (var i = 0; i < steps.length; i++)
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: i == steps.length - 1 ? 0 : AppSpace.xs + 1,
+                    ),
+                    child: AnimatedContainer(
+                      duration: AppDuration.medium,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: i <= currentStep ? scheme.primary : tones.sunken,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-          child: center,
-        ),
-        const SizedBox(height: 5),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: labelColor,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+          const SizedBox(height: AppSpace.md - 2),
+          Text(
+            'STEP ${currentStep + 1} OF ${steps.length} · '
+            '${steps[currentStep].label.toUpperCase()}',
+            style: theme.textTheme.labelSmall,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -405,19 +352,12 @@ class _StepHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-          ),
-        ),
-        const SizedBox(height: 6),
+        Text(title, style: theme.textTheme.headlineMedium),
+        const SizedBox(height: AppSpace.sm - 2),
         Text(
           subtitle,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
-            height: 1.35,
           ),
         ),
       ],
@@ -446,97 +386,98 @@ class _BasicsStep extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Column(
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: onPickLogo,
-                        borderRadius: BorderRadius.circular(16),
-                        child: logoBytes != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.memory(
-                                  logoBytes!,
-                                  width: 80,
-                                  height: 80,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : ListenableBuilder(
-                                listenable: nameController,
-                                builder: (context, _) {
-                                  final previewName =
-                                      nameController.text.trim();
-                                  return ProjectLogo(
-                                    projectName: previewName.isEmpty
-                                        ? 'Project'
-                                        : previewName,
-                                    size: 80,
-                                    borderRadius: 16,
-                                  );
-                                },
+          Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onPickLogo,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      child: logoBytes != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              child: Image.memory(
+                                logoBytes!,
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.cover,
                               ),
-                      ),
+                            )
+                          : ListenableBuilder(
+                              listenable: nameController,
+                              builder: (context, _) {
+                                final previewName = nameController.text.trim();
+                                return ProjectLogo(
+                                  projectName: previewName.isEmpty
+                                      ? 'Project'
+                                      : previewName,
+                                  size: 64,
+                                  borderRadius: AppRadius.md,
+                                );
+                              },
+                            ),
                     ),
-                    if (logoBytes != null)
-                      Positioned(
-                        top: -6,
-                        right: -6,
-                        child: Material(
-                          color: scheme.surfaceContainerHighest,
-                          shape: const CircleBorder(),
-                          clipBehavior: Clip.antiAlias,
-                          child: IconButton(
-                            tooltip: 'Remove logo',
-                            visualDensity: VisualDensity.compact,
-                            iconSize: 16,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 28,
-                              minHeight: 28,
-                            ),
-                            onPressed: onClearLogo,
-                            icon: Icon(
-                              AppIcons.close,
-                              color: scheme.onSurfaceVariant,
-                            ),
+                  ),
+                  if (logoBytes != null)
+                    Positioned(
+                      top: -8,
+                      right: -8,
+                      child: Material(
+                        color: scheme.surfaceContainerHighest,
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: IconButton(
+                          tooltip: 'Remove logo',
+                          visualDensity: VisualDensity.compact,
+                          iconSize: 15,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 26,
+                            minHeight: 26,
+                          ),
+                          onPressed: onClearLogo,
+                          icon: Icon(
+                            AppIcons.close,
+                            color: scheme.onSurfaceVariant,
                           ),
                         ),
                       ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: AppSpace.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: onPickLogo,
+                      child: Text(
+                        logoBytes == null ? 'Add an app logo' : 'Change logo',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.xxs),
+                    Text(
+                      'Included with Pro. Otherwise we generate one from the '
+                      'project name.',
+                      style: theme.textTheme.bodySmall,
+                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: onPickLogo,
-                  icon: Icon(
-                    logoBytes == null ? AppIcons.imageAdd : AppIcons.image,
-                    size: 18,
-                  ),
-                  label: Text(
-                    logoBytes == null
-                        ? 'Add app logo (Pro)'
-                        : 'Change logo',
-                  ),
-                ),
-                Text(
-                  'Custom logos are included on Pro.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpace.xl),
           TextFormField(
             controller: nameController,
             decoration: const InputDecoration(
@@ -547,7 +488,7 @@ class _BasicsStep extends StatelessWidget {
             validator: (v) =>
                 v == null || v.trim().isEmpty ? 'Name is required' : null,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpace.md),
           TextFormField(
             controller: descriptionController,
             decoration: const InputDecoration(
@@ -556,8 +497,9 @@ class _BasicsStep extends StatelessWidget {
               alignLabelWithHint: true,
             ),
             maxLines: 3,
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Description is required' : null,
+            validator: (v) => v == null || v.trim().isEmpty
+                ? 'Description is required'
+                : null,
           ),
         ],
       ),
@@ -579,7 +521,8 @@ class _PlatformsStep extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return GroupedSection(
-      header: 'Select platforms',
+      header: 'Where testers will run it',
+      footer: 'Pick as many as apply — you can change this later.',
       children: [
         for (final platform in kProjectPlatforms)
           GroupedListTile(
@@ -588,7 +531,7 @@ class _PlatformsStep extends StatelessWidget {
             showChevron: false,
             onTap: () => onToggle(platform.id),
             trailing: selectedPlatforms.contains(platform.id)
-                ? Icon(AppIcons.checkCircle, size: 22, color: scheme.primary)
+                ? Icon(AppIcons.check, size: 19, color: scheme.primary)
                 : null,
           ),
       ],
@@ -609,53 +552,30 @@ class _LinksStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final selected = kProjectPlatforms
         .where((p) => selectedPlatforms.contains(p.id))
         .toList();
 
     if (selected.isEmpty) {
-      return GroupedSection(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-            child: Column(
-              children: [
-                Icon(
-                  AppIcons.link,
-                  size: 32,
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'No platforms selected',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Skip for now — add links from the project page anytime.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+        child: AppEmptyState(
+          icon: AppIcons.link,
+          title: 'No platforms picked',
+          message:
+              'Nothing to link yet. Create the project and add build links '
+              'from its page whenever you have them.',
+        ),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < selected.length; i++) ...[
-            if (i > 0) const SizedBox(height: 12),
+            if (i > 0) const SizedBox(height: AppSpace.md),
             TextFormField(
               controller: linkControllers[selected[i].id],
               keyboardType: TextInputType.url,
@@ -690,33 +610,49 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            FilledButton.icon(
-              onPressed: submitting ? null : onPrimary,
-              icon: submitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    )
-                  : Icon(
-                      isLastStep ? AppIcons.check : AppIcons.arrowRight,
-                      size: 18,
-                    ),
-              label: Text(isLastStep ? 'Create project' : 'Continue'),
-            ),
-            if (showBack) ...[
-              const SizedBox(height: 4),
-              TextButton(onPressed: onBack, child: const Text('Back')),
+    final tones = AppTones.of(context);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: tones.hairline, width: AppStroke.hairline),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.gutter,
+            AppSpace.md,
+            AppSpace.gutter,
+            AppSpace.sm,
+          ),
+          child: Row(
+            children: [
+              if (showBack) ...[
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: submitting ? null : onBack,
+                    child: const Text('Back'),
+                  ),
+                ),
+                const SizedBox(width: AppSpace.md),
+              ],
+              Expanded(
+                flex: showBack ? 2 : 1,
+                child: FilledButton(
+                  onPressed: submitting ? null : onPrimary,
+                  child: submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
+                      : Text(isLastStep ? 'Create project' : 'Continue'),
+                ),
+              ),
             ],
-          ],
+          ),
         ),
       ),
     );

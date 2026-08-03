@@ -4,6 +4,10 @@ import '../app/app_scope.dart';
 import '../models/user.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_layout.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
+import '../widgets/app_header.dart';
+import '../widgets/grouped_list.dart';
 
 /// Full-screen form for inviting a tester or developer to a project.
 class InviteMemberScreen extends StatefulWidget {
@@ -64,88 +68,68 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
     final project = AppScope.of(context).projectById(widget.projectId);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Invite member')),
+      appBar: AppBar(title: const Text('Invite')),
       body: AppLayout.adaptiveBody(
         context,
         Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter + AppSpace.xs,
+              AppSpace.lg,
+              AppSpace.gutter + AppSpace.xs,
+              AppSpace.xxl,
+            ),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             children: [
               Text(
-                'They\'ll get access to feedback and bug reports for this project.',
+                'Testers can file reports. Developers can triage them, fix '
+                'bugs, and reply.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.35,
                 ),
               ),
               if (project != null) ...[
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpace.xl),
                 _InviteLinkCard(link: project.inviteLink),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Divider(color: theme.colorScheme.outlineVariant),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'or add by email',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Divider(color: theme.colorScheme.outlineVariant),
-                    ),
-                  ],
-                ),
+                const SizedBox(height: AppSpace.xl),
+                const LabeledRule('or invite by email'),
               ],
-              const SizedBox(height: 24),
-              Text(
-                'Role',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpace.xl),
+              const _FieldLabel('Their role'),
               SegmentedButton<UserRole>(
+                showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(
                     value: UserRole.tester,
                     label: Text('Tester'),
-                    icon: Icon(AppIcons.bug),
+                    icon: Icon(AppIcons.bug, size: 16),
                   ),
                   ButtonSegment(
                     value: UserRole.developer,
                     label: Text('Developer'),
-                    icon: Icon(AppIcons.code),
+                    icon: Icon(AppIcons.code, size: 16),
                   ),
                 ],
                 selected: {_role},
                 onSelectionChanged: (s) => setState(() => _role = s.first),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpace.xl),
+              const _FieldLabel('Name'),
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  prefixIcon: Icon(AppIcons.person),
-                ),
+                decoration: const InputDecoration(hintText: 'Jordan Ade'),
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Name is required' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpace.lg),
+              const _FieldLabel('Email'),
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(AppIcons.mail),
+                  hintText: 'jordan@example.com',
                 ),
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.done,
@@ -160,24 +144,40 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-        child: FilledButton.icon(
-          onPressed: _submitting ? null : _submit,
-          icon: _submitting
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2.5),
-                )
-              : const Icon(AppIcons.send, size: 18),
-          label: const Text('Send invite'),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: AppTones.of(context).hairline,
+              width: AppStroke.hairline,
+            ),
+          ),
+        ),
+        child: SafeArea(
+          minimum: const EdgeInsets.fromLTRB(
+            AppSpace.gutter,
+            AppSpace.md,
+            AppSpace.gutter,
+            AppSpace.md,
+          ),
+          child: FilledButton(
+            onPressed: _submitting ? null : _submit,
+            child: _submitting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  )
+                : const Text('Send invite'),
+          ),
         ),
       ),
     );
   }
 }
 
+/// The shareable join link. Presented first because it's the path most teams
+/// actually take — the email form below is the deliberate, named invite.
 class _InviteLinkCard extends StatelessWidget {
   const _InviteLinkCard({required this.link});
 
@@ -187,64 +187,92 @@ class _InviteLinkCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tones = AppTones.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(AppSpace.lg),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outlineVariant),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: tones.hairline, width: AppStroke.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(AppIcons.link, size: 18, color: scheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                'Anyone with the link can join',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+              IconTile(icon: AppIcons.link, tint: scheme.primary, size: 28),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Text(
+                  'Share a join link',
+                  style: theme.textTheme.titleSmall,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color:
-                        scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+          const SizedBox(height: AppSpace.md),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpace.md,
+              vertical: AppSpace.md - 2,
+            ),
+            decoration: BoxDecoration(
+              color: tones.sunken,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Row(
+              children: [
+                Expanded(
                   child: Text(
                     link,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.tonalIcon(
-                onPressed: () =>
-                    copyToClipboard(context, link, 'Invite link copied'),
-                icon: const Icon(AppIcons.copy, size: 16),
-                label: const Text('Copy'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                const SizedBox(width: AppSpace.sm),
+                TextButton(
+                  onPressed: () =>
+                      copyToClipboard(context, link, 'Invite link copied'),
+                  style: TextButton.styleFrom(
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpace.sm,
+                      vertical: AppSpace.xs,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Copy'),
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.sm + 2),
+          Text(
+            'Anyone with the link joins as a tester.',
+            style: theme.textTheme.bodySmall,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.sm),
+      child: Text(
+        text.toUpperCase(),
+        style: Theme.of(context).textTheme.labelSmall,
       ),
     );
   }

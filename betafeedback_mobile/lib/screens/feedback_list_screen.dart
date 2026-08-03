@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../app/app_scope.dart';
 import '../models/feedback.dart';
+import '../theme/app_icons.dart';
+import '../theme/app_tokens.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/feedback_card.dart';
 
 /// Full feedback feed for a project (newest first).
@@ -21,9 +24,7 @@ class FeedbackListScreen extends StatelessWidget {
       builder: (context, _) {
         final project = appState.projectById(projectId);
         if (project == null) {
-          return const Scaffold(
-            body: Center(child: Text('Project not found')),
-          );
+          return const Scaffold(body: Center(child: Text('Project not found')));
         }
 
         final currentUser = appState.currentUser;
@@ -31,19 +32,26 @@ class FeedbackListScreen extends StatelessWidget {
         final isDeveloper = project.developerIds.contains(currentUser.id);
         final canReply = isDeveloper || isCreator;
 
-        final messages = project.feedback
-            .where((m) => m.type == FeedbackType.testerMessage)
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        final messages =
+            project.feedback
+                .where((m) => m.type == FeedbackType.testerMessage)
+                .toList()
+              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Feedback')),
+          appBar: AppBar(title: Text('Feedback · ${messages.length}')),
           body: messages.isEmpty
               ? const _EmptyFeedback()
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpace.gutter,
+                    AppSpace.md,
+                    AppSpace.gutter,
+                    AppSpace.xxl,
+                  ),
                   itemCount: messages.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: AppSpace.sm + 2),
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final author = appState.userById(message.authorId);
@@ -71,17 +79,10 @@ class _EmptyFeedback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Text(
-          'No feedback yet.',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
+    return const AppEmptyState(
+      icon: AppIcons.feedback,
+      title: 'No reports yet',
+      message: 'Reports from your testers will collect here.',
     );
   }
 }

@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import '../app/app_scope.dart';
 import '../models/feedback.dart';
 import '../theme/app_icons.dart';
+import '../theme/app_tokens.dart';
+import 'app_header.dart';
 
 /// Sheet for editing an open or needs-info structured bug.
 class EditBugSheet extends StatefulWidget {
-  const EditBugSheet({
-    super.key,
-    required this.projectId,
-    required this.bug,
-  });
+  const EditBugSheet({super.key, required this.projectId, required this.bug});
 
   final String projectId;
   final StructuredBug bug;
@@ -122,102 +120,110 @@ class _EditBugSheetState extends State<EditBugSheet> {
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 8,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 24,
+        left: AppSpace.xl,
+        right: AppSpace.xl,
+        top: AppSpace.xs,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpace.xxl,
       ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Edit bug',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            const SheetHeader(
+              title: 'Edit bug',
+              subtitle: 'Tighten the report so it is easy to reproduce.',
             ),
-            const SizedBox(height: 20),
             TextField(
               controller: _titleController,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(labelText: 'Title'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             DropdownButtonFormField<String>(
-              value: _severities.contains(_severity) ? _severity : 'Low',
+              initialValue: _severities.contains(_severity) ? _severity : 'Low',
               decoration: const InputDecoration(labelText: 'Severity'),
               items: [
                 for (final s in _severities)
                   DropdownMenuItem(value: s, child: Text(s)),
               ],
-              onChanged:
-                  _submitting ? null : (v) => setState(() => _severity = v!),
+              onChanged: _submitting
+                  ? null
+                  : (v) => setState(() => _severity = v!),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Steps to reproduce',
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w600,
+            const SizedBox(height: AppSpace.xl),
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppSpace.xs,
+                bottom: AppSpace.sm + 2,
+              ),
+              child: Text(
+                'STEPS TO REPRODUCE',
+                style: theme.textTheme.labelSmall,
               ),
             ),
-            const SizedBox(height: 8),
-            for (var i = 0; i < _stepControllers.length; i++) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _stepControllers[i],
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: InputDecoration(
-                        labelText: 'Step ${i + 1}',
+            for (var i = 0; i < _stepControllers.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpace.sm),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _stepControllers[i],
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: InputDecoration(hintText: 'Step ${i + 1}'),
                       ),
                     ),
-                  ),
-                  if (_stepControllers.length > 1)
-                    IconButton(
-                      onPressed: _submitting ? null : () => _removeStep(i),
-                      icon: const Icon(AppIcons.close, size: 18),
-                    ),
-                ],
+                    if (_stepControllers.length > 1)
+                      IconButton(
+                        tooltip: 'Remove step',
+                        onPressed: _submitting ? null : () => _removeStep(i),
+                        icon: const Icon(AppIcons.close, size: 17),
+                      ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-            ],
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: _submitting ? null : _addStep,
-                icon: const Icon(AppIcons.add, size: 18),
+                icon: const Icon(AppIcons.add, size: 16),
                 label: const Text('Add step'),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpace.lg),
             TextField(
               controller: _expectedController,
               maxLines: 2,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Expected'),
+              decoration: const InputDecoration(
+                labelText: 'Expected',
+                alignLabelWithHint: true,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             TextField(
               controller: _actualController,
               maxLines: 2,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Actual'),
+              decoration: const InputDecoration(
+                labelText: 'Actual',
+                alignLabelWithHint: true,
+              ),
             ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
+            const SizedBox(height: AppSpace.xxl),
+            FilledButton(
               onPressed: _submitting ? null : _submit,
-              icon: _submitting
+              child: _submitting
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Icon(AppIcons.check, size: 18),
-              label: const Text('Save changes'),
+                  : const Text('Save changes'),
             ),
           ],
         ),

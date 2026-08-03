@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_icons.dart';
 import '../../theme/app_layout.dart';
+import '../../theme/app_theme.dart';
+import '../../theme/app_tokens.dart';
+import '../../widgets/grouped_list.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/app_scope.dart';
@@ -102,42 +105,30 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.xxl,
+              AppSpace.lg,
+              AppSpace.xxl,
+              AppSpace.xxl,
+            ),
             child: ConstrainedBox(
-              constraints:
-                  const BoxConstraints(maxWidth: AppLayout.narrowMaxWidth),
+              constraints: const BoxConstraints(
+                maxWidth: AppLayout.narrowMaxWidth,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: scheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Icon(
-                        AppIcons.mailOpen,
-                        color: scheme.onPrimaryContainer,
-                        size: 26,
-                      ),
-                    ),
+                  IconTile(
+                    icon: AppIcons.mailOpen,
+                    tint: scheme.primary,
+                    size: 40,
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Check your email',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpace.xl),
+                  Text('Check your email', style: theme.textTheme.displaySmall),
+                  const SizedBox(height: AppSpace.sm + 2),
                   Text.rich(
                     TextSpan(
-                      text: 'Enter the 6-digit code we sent to\n',
+                      text: 'Enter the 6-digit code we sent to ',
                       children: [
                         TextSpan(
                           text: widget.email,
@@ -146,36 +137,43 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        const TextSpan(text: '.'),
                       ],
                     ),
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       color: scheme.onSurfaceVariant,
-                      height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: AppSpace.xxl),
                   _CodeInput(
                     key: ValueKey(_attempt),
                     enabled: !_verifying,
                     onCompleted: _onCompleted,
                   ),
                   if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: scheme.error,
-                      ),
+                    const SizedBox(height: AppSpace.md),
+                    Row(
+                      children: [
+                        Icon(AppIcons.error, size: 15, color: scheme.error),
+                        const SizedBox(width: AppSpace.sm - 2),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: scheme.error,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpace.xl),
                   if (_verifying)
-                    Center(
+                    Align(
+                      alignment: Alignment.centerLeft,
                       child: SizedBox(
-                        width: 22,
-                        height: 22,
+                        width: 20,
+                        height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
                           color: scheme.primary,
@@ -183,17 +181,24 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                       ),
                     )
                   else
-                    _ResendRow(
-                      secondsLeft: _secondsLeft,
-                      onResend: _resend,
-                    ),
+                    _ResendRow(secondsLeft: _secondsLeft, onResend: _resend),
                   if (widget.debugCode != null) ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      'Dev code: ${widget.debugCode}',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                    const SizedBox(height: AppSpace.xl),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpace.md,
+                        vertical: AppSpace.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTones.of(context).warningContainer,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        'Dev code · ${widget.debugCode}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppTones.of(context).warning,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -219,7 +224,6 @@ class _ResendRow extends StatelessWidget {
     final canResend = secondsLeft == 0;
 
     return Wrap(
-      alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(
@@ -232,7 +236,7 @@ class _ResendRow extends StatelessWidget {
           GestureDetector(
             onTap: onResend,
             child: Text(
-              'Resend code',
+              'Send another code',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w600,
@@ -241,7 +245,7 @@ class _ResendRow extends StatelessWidget {
           )
         else
           Text(
-            'Resend in ${secondsLeft}s',
+            'You can ask again in ${secondsLeft}s',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -292,7 +296,9 @@ class _CodeInputState extends State<_CodeInput> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tones = AppTones.of(context);
     final text = _controller.text;
     final focused = _focusNode.hasFocus;
 
@@ -301,28 +307,28 @@ class _CodeInputState extends State<_CodeInput> {
         Row(
           children: [
             for (var i = 0; i < widget.length; i++) ...[
-              if (i > 0) const SizedBox(width: 8),
+              if (i > 0) const SizedBox(width: AppSpace.sm),
               Expanded(
                 child: AspectRatio(
-                  aspectRatio: 0.82,
-                  child: Container(
+                  aspectRatio: 0.84,
+                  child: AnimatedContainer(
+                    duration: AppDuration.fast,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(12),
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                       border: Border.all(
-                        color: (focused && i == text.length) ||
-                                (i < text.length)
+                        color: focused && i == text.length
                             ? scheme.primary
-                            : scheme.outlineVariant,
-                        width: (focused && i == text.length) ? 2 : 1,
+                            : tones.hairline,
+                        width: focused && i == text.length
+                            ? AppStroke.focus
+                            : AppStroke.thin,
                       ),
                     ),
                     child: Text(
                       i < text.length ? text[i] : '',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                      style: theme.textTheme.headlineMedium,
                     ),
                   ),
                 ),

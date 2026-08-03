@@ -49,13 +49,22 @@ func (s *Store) GetSubscription(ctx context.Context, userID string) (model.Subsc
 	return sub, nil
 }
 
-// UserIsPro reports whether the user is on an active paid plan.
+// UserIsPro reports whether the user currently has Pro access.
+// past_due still has access until RevenueCat sends EXPIRATION.
 func (s *Store) UserIsPro(ctx context.Context, userID string) (bool, error) {
 	sub, err := s.GetSubscription(ctx, userID)
 	if err != nil {
 		return false, err
 	}
-	return sub.Plan == "pro", nil
+	if sub.Plan != "pro" {
+		return false, nil
+	}
+	switch sub.Status {
+	case "active", "trialing", "past_due":
+		return true, nil
+	default:
+		return false, nil
+	}
 }
 
 // CanUserCreateProject checks the user's plan limit against projects they own.
@@ -71,29 +80,62 @@ func (s *Store) CanUserCreateProject(ctx context.Context, userID string) (bool, 
 }
 
 // SetPlan upserts the user's subscription, deriving limits and renewal date
-// from the chosen plan.
+// from the chosen plan. Used by the development stub endpoint only.
 func (s *Store) SetPlan(ctx context.Context, userID, plan string) (model.Subscription, error) {
-	var (
-		renews *time.Time
-		limit  *int
-	)
+	var renews *time.Time
+	if plan == "pro" {
+		t := time.Now().AddDate(0, 0, 30)
+		renews = &t
+	}
+	return s.SetSubscriptionFromBilling(ctx, userID, plan, "active", renews, "", "")
+}
+
+// SetSubscriptionFromBilling upserts plan state from RevenueCat (or the dev stub).
+func (s *Store) SetSubscriptionFromBilling(
+	ctx context.Context,
+	userID, plan, status string,
+	renews *time.Time,
+	rcEventID, rcProductID string,
+) (model.Subscription, error) {
+	var limit *int
 	switch plan {
-	case "free":
-		limit = intPtr(FreeProjectLimit)
 	case "pro":
 		limit = nil
-		if t := time.Now().AddDate(0, 0, 30); true {
-			renews = &t
+	default:
+		plan = "free"
+		limit = intPtr(FreeProjectLimit)
+		if status == "" {
+			status = "active"
 		}
+	}
+	if status == "" {
+		status = "active"
+	}
+
+	var eventID, productID *string
+	if rcEventID != "" {
+		eventID = &rcEventID
+	}
+	if rcProductID != "" {
+		productID = &rcProductID
 	}
 
 	if _, err := s.pool.Exec(ctx, `
-		INSERT INTO subscriptions (user_id, plan, status, renews_on, seats, project_limit, updated_at)
-		VALUES ($1, $2, 'active', $3, 1, $4, now())
+		INSERT INTO subscriptions (
+			user_id, plan, status, renews_on, seats, project_limit,
+			rc_event_id, rc_product_id, updated_at
+		)
+		VALUES ($1, $2, $3, $4, 1, $5, $6, $7, now())
 		ON CONFLICT (user_id) DO UPDATE
-		SET plan = EXCLUDED.plan, status = EXCLUDED.status, renews_on = EXCLUDED.renews_on,
-		    seats = 1, project_limit = EXCLUDED.project_limit, updated_at = now()
-	`, userID, plan, renews, limit); err != nil {
+		SET plan = EXCLUDED.plan,
+		    status = EXCLUDED.status,
+		    renews_on = EXCLUDED.renews_on,
+		    seats = 1,
+		    project_limit = EXCLUDED.project_limit,
+		    rc_event_id = COALESCE(EXCLUDED.rc_event_id, subscriptions.rc_event_id),
+		    rc_product_id = COALESCE(EXCLUDED.rc_product_id, subscriptions.rc_product_id),
+		    updated_at = now()
+	`, userID, plan, status, renews, limit, eventID, productID); err != nil {
 		return model.Subscription{}, err
 	}
 
@@ -107,6 +149,19 @@ func (s *Store) SetPlan(ctx context.Context, userID, plan string) (model.Subscri
 	}
 
 	return s.GetSubscription(ctx, userID)
+}
+
+// UserExists reports whether a user id is present (for RevenueCat app_user_id mapping).
+func (s *Store) UserExists(ctx context.Context, userID string) (bool, error) {
+	var n int
+	err := s.pool.QueryRow(ctx, `SELECT 1 FROM users WHERE id = $1`, userID).Scan(&n)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func intPtr(v int) *int { return &v }

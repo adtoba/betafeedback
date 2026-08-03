@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_icons.dart';
+import '../theme/app_layout.dart';
+import '../theme/app_tokens.dart';
 
 import '../app/app_scope.dart';
 import '../data/app_state.dart';
 import '../models/test_item.dart';
+import '../widgets/app_header.dart';
+import '../widgets/empty_state.dart';
 import 'new_feedback_screen.dart';
 
 /// The project's "What to test" plan. The creator manages the list; testers and
@@ -36,33 +40,49 @@ class TestPlanScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(title: const Text('What to test')),
-          body: items.isEmpty
-              ? _Empty(canAdd: canAddToPlan)
-              : ListView.separated(
-                  padding: EdgeInsets.fromLTRB(20, 12, 20, canAddToPlan ? 96 : 24),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) => _TestItemCard(
-                    index: index + 1,
-                    item: items[index],
-                    canManage: canManagePlan,
-                    canReport: isTester || isCreator,
-                    onDelete: () => _removeItem(
-                      context,
-                      appState,
-                      project.id,
-                      items[index].id,
+          body: AppLayout.adaptiveBody(
+            context,
+            items.isEmpty
+                ? AppEmptyState(
+                    icon: AppIcons.listChecks,
+                    title: 'Nothing to test yet',
+                    message: canAddToPlan
+                        ? 'Add items so testers know exactly what to focus '
+                              'on in this build.'
+                        : "The creator hasn't added testing instructions yet.",
+                  )
+                : ListView.separated(
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpace.gutter,
+                      AppSpace.md,
+                      AppSpace.gutter,
+                      canAddToPlan ? AppSpace.fabClearance : AppSpace.xxl,
                     ),
-                    onReport: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => NewFeedbackScreen(
-                          projectId: project.id,
-                          initialTitle: items[index].title,
+                    itemCount: items.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: AppSpace.sm + 2),
+                    itemBuilder: (context, index) => _TestItemCard(
+                      index: index + 1,
+                      item: items[index],
+                      canManage: canManagePlan,
+                      canReport: isTester || isCreator,
+                      onDelete: () => _removeItem(
+                        context,
+                        appState,
+                        project.id,
+                        items[index].id,
+                      ),
+                      onReport: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => NewFeedbackScreen(
+                            projectId: project.id,
+                            initialTitle: items[index].title,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
+          ),
           floatingActionButton: canAddToPlan
               ? FloatingActionButton.extended(
                   onPressed: () => _openAddItem(context, appState, project.id),
@@ -75,11 +95,7 @@ class TestPlanScreen extends StatelessWidget {
     );
   }
 
-  void _openAddItem(
-    BuildContext context,
-    AppState appState,
-    String projectId,
-  ) {
+  void _openAddItem(BuildContext context, AppState appState, String projectId) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -128,7 +144,12 @@ class _TestItemCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.md + 2,
+          AppSpace.md + 2,
+          AppSpace.sm,
+          AppSpace.sm,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -136,29 +157,30 @@ class _TestItemCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 26,
-                  height: 26,
+                  width: 24,
+                  height: 24,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: scheme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.xs + 1),
                   ),
                   child: Text(
                     '$index',
                     style: TextStyle(
                       color: scheme.primary,
                       fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontSize: 12,
+                      height: 1.1,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpace.md),
                 Expanded(
-                  child: Text(
-                    item.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      height: 1.25,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: AppSpace.xxs),
+                    child: Text(
+                      item.title,
+                      style: theme.textTheme.titleSmall?.copyWith(fontSize: 16),
                     ),
                   ),
                 ),
@@ -167,40 +189,44 @@ class _TestItemCard extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                     tooltip: 'Remove',
                     onPressed: onDelete,
-                    icon: Icon(AppIcons.close, size: 18, color: scheme.onSurfaceVariant),
-                  ),
+                    icon: Icon(
+                      AppIcons.close,
+                      size: 17,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  )
+                else
+                  const SizedBox(width: AppSpace.xs),
               ],
             ),
-            if (item.details != null) ...[
-              const SizedBox(height: 8),
+            if (item.details != null)
               Padding(
-                padding: const EdgeInsets.only(left: 38),
+                padding: const EdgeInsets.only(
+                  left: 36,
+                  top: AppSpace.xs + 2,
+                  right: AppSpace.sm,
+                ),
                 child: Text(
                   item.details!,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    height: 1.4,
                   ),
                 ),
               ),
-            ],
-            if (canReport) ...[
-              const SizedBox(height: 8),
+            if (canReport)
               Padding(
-                padding: const EdgeInsets.only(left: 30),
+                padding: const EdgeInsets.only(left: 28, top: AppSpace.xs),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
                     onPressed: onReport,
-                    icon: const Icon(AppIcons.flag, size: 18),
+                    icon: const Icon(AppIcons.flag, size: 15),
                     label: const Text('Report on this'),
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                    ),
                   ),
                 ),
-              ),
-            ],
+              )
+            else
+              const SizedBox(height: AppSpace.sm),
           ],
         ),
       ),
@@ -254,14 +280,12 @@ class _AddTestItemSheetState extends State<_AddTestItemSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Padding(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 8,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 24,
+        left: AppSpace.xl,
+        right: AppSpace.xl,
+        top: AppSpace.xs,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpace.xxl,
       ),
       child: Form(
         key: _formKey,
@@ -269,20 +293,10 @@ class _AddTestItemSheetState extends State<_AddTestItemSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Add test item',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            const SheetHeader(
+              title: 'Add test item',
+              subtitle: 'Tell testers exactly what to check.',
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Tell testers exactly what to check.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 20),
             TextFormField(
               controller: _titleController,
               textCapitalization: TextCapitalization.sentences,
@@ -290,10 +304,11 @@ class _AddTestItemSheetState extends State<_AddTestItemSheet> {
                 labelText: 'What to test',
                 hintText: 'e.g. Complete a checkout with a promo code',
               ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Add a short instruction' : null,
+              validator: (v) => v == null || v.trim().isEmpty
+                  ? 'Add a short instruction'
+                  : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             TextFormField(
               controller: _detailsController,
               maxLines: 3,
@@ -304,52 +319,19 @@ class _AddTestItemSheetState extends State<_AddTestItemSheet> {
                 alignLabelWithHint: true,
               ),
             ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
+            const SizedBox(height: AppSpace.xxl),
+            FilledButton(
               onPressed: _submitting ? null : _submit,
-              icon: _submitting
+              child: _submitting
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Icon(AppIcons.add, size: 18),
-              label: const Text('Add to plan'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Empty extends StatelessWidget {
-  const _Empty({required this.canAdd});
-
-  final bool canAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(AppIcons.listChecks,
-                size: 56, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
-            Text('No test plan yet', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              canAdd
-                  ? 'Add items to tell your testers exactly what to focus on.'
-                  : 'The creator hasn\'t added testing instructions yet.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+                  : const Text('Add to plan'),
             ),
           ],
         ),

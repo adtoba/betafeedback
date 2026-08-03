@@ -1,17 +1,17 @@
 enum UserRole { creator, tester, developer }
 
 UserRole? userRoleFromString(String? value) => switch (value) {
-      'creator' => UserRole.creator,
-      'tester' => UserRole.tester,
-      'developer' => UserRole.developer,
-      _ => null,
-    };
+  'creator' => UserRole.creator,
+  'tester' => UserRole.tester,
+  'developer' => UserRole.developer,
+  _ => null,
+};
 
 String userRoleToString(UserRole role) => switch (role) {
-      UserRole.creator => 'creator',
-      UserRole.tester => 'tester',
-      UserRole.developer => 'developer',
-    };
+  UserRole.creator => 'creator',
+  UserRole.tester => 'tester',
+  UserRole.developer => 'developer',
+};
 
 class User {
   const User({
@@ -21,6 +21,11 @@ class User {
     this.role,
     this.avatarColor,
     this.emailNotifications = false,
+    this.pushNotifications = true,
+    this.openToTest = false,
+    this.testerBio = '',
+    this.testerRatingAvg = 0,
+    this.testerRatingCount = 0,
   });
 
   final String id;
@@ -32,13 +37,24 @@ class User {
   final UserRole? role;
   final int? avatarColor;
   final bool emailNotifications;
+  final bool pushNotifications;
+  final bool openToTest;
+  final String testerBio;
+  final double testerRatingAvg;
+  final int testerRatingCount;
 
   String get roleLabel => switch (role) {
-        UserRole.creator => 'Creator',
-        UserRole.tester => 'Tester',
-        UserRole.developer => 'Developer',
-        null => 'Member',
-      };
+    UserRole.creator => 'Creator',
+    UserRole.tester => 'Tester',
+    UserRole.developer => 'Developer',
+    null => 'Member',
+  };
+
+  String get testerRatingLabel {
+    if (testerRatingCount == 0) return 'No ratings yet';
+    return '${testerRatingAvg.toStringAsFixed(1)} · $testerRatingCount '
+        '${testerRatingCount == 1 ? "rating" : "ratings"}';
+  }
 
   /// Parses either a `/me`-style user (`id`) or a project member (`user_id`,
   /// `role`).
@@ -50,6 +66,11 @@ class User {
       role: userRoleFromString(json['role'] as String?),
       avatarColor: (json['avatar_hue'] as num?)?.toInt(),
       emailNotifications: json['email_notifications'] as bool? ?? false,
+      pushNotifications: json['push_notifications'] as bool? ?? true,
+      openToTest: json['open_to_test'] as bool? ?? false,
+      testerBio: json['tester_bio'] as String? ?? '',
+      testerRatingAvg: (json['tester_rating_avg'] as num?)?.toDouble() ?? 0,
+      testerRatingCount: (json['tester_rating_count'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -60,6 +81,11 @@ class User {
     UserRole? role,
     int? avatarColor,
     bool? emailNotifications,
+    bool? pushNotifications,
+    bool? openToTest,
+    String? testerBio,
+    double? testerRatingAvg,
+    int? testerRatingCount,
   }) {
     return User(
       id: id ?? this.id,
@@ -68,6 +94,11 @@ class User {
       role: role ?? this.role,
       avatarColor: avatarColor ?? this.avatarColor,
       emailNotifications: emailNotifications ?? this.emailNotifications,
+      pushNotifications: pushNotifications ?? this.pushNotifications,
+      openToTest: openToTest ?? this.openToTest,
+      testerBio: testerBio ?? this.testerBio,
+      testerRatingAvg: testerRatingAvg ?? this.testerRatingAvg,
+      testerRatingCount: testerRatingCount ?? this.testerRatingCount,
     );
   }
 }

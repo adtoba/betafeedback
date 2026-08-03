@@ -14,9 +14,9 @@ class TestItem {
   final DateTime createdAt;
 
   factory TestItem.fromJson(Map<String, dynamic> json) => TestItem(
-        id: json['id'] as String,
-        title: json['title'] as String? ?? '',
-        details: json['details'] as String?,
-        createdAt: DateTime.parse(json['created_at'] as String),
-      );
+    id: json['id'] as String,
+    title: json['title'] as String? ?? '',
+    details: json['details'] as String?,
+    createdAt: DateTime.parse(json['created_at'] as String),
+  );
 }

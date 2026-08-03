@@ -1,12 +1,61 @@
 import 'package:flutter/material.dart';
 
+import '../data/app_state.dart';
 import '../models/subscription.dart';
 import '../theme/app_icons.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
+import 'app_header.dart';
+import 'status_pill.dart';
 
+/// Convenience wrapper that wires RevenueCat purchase / restore / manage.
+void showUpgradeSheet(
+  BuildContext context,
+  AppState appState, {
+  String? title,
+}) {
+  showPlanPickerSheet(
+    context,
+    title: title,
+    currentPlan: appState.currentSubscription.plan,
+    onUpgrade: () async {
+      final ok = await appState.purchasePro();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ok
+                ? 'You\'re on Pro — thanks for supporting BetaFeedback'
+                : 'Purchase canceled',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    },
+    onRestore: () async {
+      final ok = await appState.restorePurchases();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ok ? 'Purchases restored' : 'No active Pro subscription found',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    },
+    onManage: appState.manageSubscription,
+  );
+}
+
+/// Shows Free / Pro options. Selecting Pro runs [onUpgrade]; Free while on Pro
+/// opens manage subscriptions; Restore uses [onRestore].
 void showPlanPickerSheet(
   BuildContext context, {
   required SubscriptionPlan currentPlan,
-  required Future<void> Function(SubscriptionPlan plan) onSelect,
+  required Future<void> Function() onUpgrade,
+  Future<void> Function()? onRestore,
+  Future<void> Function()? onManage,
   String? title,
 }) {
   showModalBottomSheet<void>(
@@ -15,11 +64,11 @@ void showPlanPickerSheet(
     builder: (sheetContext) => PlanPickerSheet(
       title: title ?? 'Choose a plan',
       currentPlan: currentPlan,
-      onSelect: (plan) async {
+      onUpgrade: () async {
         final navigator = Navigator.of(sheetContext);
         try {
-          await onSelect(plan);
-          navigator.pop();
+          await onUpgrade();
+          if (sheetContext.mounted) navigator.pop();
         } catch (e) {
           if (sheetContext.mounted) {
             ScaffoldMessenger.of(sheetContext).showSnackBar(
@@ -31,6 +80,26 @@ void showPlanPickerSheet(
           }
         }
       },
+      onRestore: onRestore == null
+          ? null
+          : () async {
+              try {
+                await onRestore();
+                if (sheetContext.mounted) {
+                  Navigator.of(sheetContext).pop();
+                }
+              } catch (e) {
+                if (sheetContext.mounted) {
+                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                    SnackBar(
+                      content: Text('$e'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
+      onManage: onManage,
     ),
   );
 }
@@ -40,39 +109,81 @@ class PlanPickerSheet extends StatelessWidget {
     super.key,
     required this.title,
     required this.currentPlan,
-    required this.onSelect,
+    required this.onUpgrade,
+    this.onRestore,
+    this.onManage,
   });
 
   final String title;
   final SubscriptionPlan currentPlan;
-  final void Function(SubscriptionPlan plan) onSelect;
+  final VoidCallback onUpgrade;
+  final VoidCallback? onRestore;
+  final Future<void> Function()? onManage;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isPro = currentPlan == SubscriptionPlan.pro;
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.xl,
+          AppSpace.xs,
+          AppSpace.xl,
+          AppSpace.xxl,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            SheetHeader(
+              title: title,
+              subtitle: isPro
+                  ? "You're on Pro. Manage or restore your plan below."
+                  : 'Upgrade any time — your projects and feedback stay put.',
             ),
-            const SizedBox(height: 16),
             for (final plan in SubscriptionPlan.values) ...[
               _PlanOption(
                 plan: plan,
                 isCurrent: plan == currentPlan,
-                onTap: plan == currentPlan ? null : () => onSelect(plan),
+                onTap: plan == currentPlan
+                    ? null
+                    : plan == SubscriptionPlan.pro
+                    ? onUpgrade
+                    : () async {
+                        // Downgrades happen in the store subscription manager.
+                        if (onManage != null) {
+                          await onManage!();
+                        } else if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Cancel Pro in your App Store or Play Store subscriptions.',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpace.md),
             ],
+            const SizedBox(height: AppSpace.xs),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isPro && onManage != null)
+                  TextButton(
+                    onPressed: () => onManage!(),
+                    child: const Text('Manage subscription'),
+                  ),
+                if (onRestore != null)
+                  TextButton(
+                    onPressed: onRestore,
+                    child: const Text('Restore purchases'),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -96,16 +207,19 @@ class _PlanOption extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
+    final tones = AppTones.of(context);
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpace.lg + 1),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          color: isCurrent ? scheme.primary.withValues(alpha: 0.04) : null,
+          borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
-            color: isCurrent ? scheme.primary : scheme.outlineVariant,
-            width: isCurrent ? 1.5 : 1,
+            color: isCurrent ? scheme.primary : tones.hairline,
+            width: isCurrent ? AppStroke.focus : AppStroke.thin,
           ),
         ),
         child: Column(
@@ -113,64 +227,43 @@ class _PlanOption extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            plan.label,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            plan.priceLabel,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        plan.tagline,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                Text(plan.label, style: theme.textTheme.titleLarge),
+                const SizedBox(width: AppSpace.sm),
+                Text(
+                  plan.priceLabel,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
+                const Spacer(),
                 if (isCurrent)
-                  Text(
-                    'Current',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  )
+                  StatusPill(label: 'Current', color: scheme.primary)
                 else
-                  Icon(AppIcons.chevronRight, color: scheme.onSurfaceVariant),
+                  Icon(
+                    AppIcons.chevronRight,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpace.xxs),
+            Text(
+              plan.tagline,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpace.md + 2),
             for (final feature in plan.features)
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: const EdgeInsets.only(bottom: AppSpace.sm - 2),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(AppIcons.checkCircle,
-                        size: 16, color: scheme.primary),
-                    const SizedBox(width: 8),
+                    Icon(AppIcons.check, size: 15, color: scheme.tertiary),
+                    const SizedBox(width: AppSpace.sm + 2),
                     Expanded(
-                      child: Text(
-                        feature,
-                        style: theme.textTheme.bodySmall,
-                      ),
+                      child: Text(feature, style: theme.textTheme.bodyMedium),
                     ),
                   ],
                 ),

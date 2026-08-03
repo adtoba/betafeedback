@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_icons.dart';
-
 import '../app/app_scope.dart';
+import '../theme/app_tokens.dart';
+import '../widgets/app_header.dart';
 
 /// Sheet developers (or the creator) use to announce a new build. Posts to the
 /// activity trail and notifies every other member.
@@ -58,14 +58,12 @@ class _PostReleaseSheetState extends State<PostReleaseSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Padding(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 8,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 24,
+        left: AppSpace.xl,
+        right: AppSpace.xl,
+        top: AppSpace.xs,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpace.xxl,
       ),
       child: Form(
         key: _formKey,
@@ -73,58 +71,46 @@ class _PostReleaseSheetState extends State<PostReleaseSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Icon(AppIcons.rocket, color: theme.colorScheme.primary),
-                const SizedBox(width: 10),
-                Text(
-                  'Announce a release',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            const SheetHeader(
+              title: 'Announce a release',
+              subtitle:
+                  'Everyone on the project is notified and it lands in the '
+                  'activity trail.',
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Everyone on the project gets notified.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 20),
             TextFormField(
               controller: _versionController,
               decoration: const InputDecoration(
                 labelText: 'Version',
                 hintText: 'e.g. v1.4.0 (231)',
-                prefixIcon: Icon(AppIcons.tag),
               ),
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Add a version' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.lg),
             TextFormField(
               controller: _notesController,
               maxLines: 4,
+              minLines: 3,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                labelText: "What's new (optional)",
+                labelText: 'What\'s new (optional)',
                 hintText: 'Fixes, new features, what to retest…',
                 alignLabelWithHint: true,
               ),
             ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
+            const SizedBox(height: AppSpace.xxl),
+            FilledButton(
               onPressed: _submitting ? null : _submit,
-              icon: _submitting
+              child: _submitting
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Icon(AppIcons.megaphone, size: 18),
-              label: const Text('Post release'),
+                  : const Text('Post release'),
             ),
           ],
         ),

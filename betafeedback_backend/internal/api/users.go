@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/adetoba/betafeedback_backend/internal/model"
 	"github.com/adetoba/betafeedback_backend/internal/store"
 )
 
@@ -22,6 +23,7 @@ func (s *Server) getMe(w http.ResponseWriter, r *http.Request, userID string) {
 
 type updatePreferencesRequest struct {
 	EmailNotifications *bool `json:"email_notifications"`
+	PushNotifications  *bool `json:"push_notifications"`
 }
 
 func (s *Server) updatePreferences(w http.ResponseWriter, r *http.Request, userID string) {
@@ -30,32 +32,49 @@ func (s *Server) updatePreferences(w http.ResponseWriter, r *http.Request, userI
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.EmailNotifications == nil {
-		writeError(w, http.StatusBadRequest, "email_notifications is required")
+	if req.EmailNotifications == nil && req.PushNotifications == nil {
+		writeError(w, http.StatusBadRequest, "no preferences provided")
 		return
 	}
 
-	if *req.EmailNotifications {
-		pro, err := s.store.UserIsPro(r.Context(), userID)
+	var user model.User
+	var err error
+
+	if req.EmailNotifications != nil {
+		if *req.EmailNotifications {
+			pro, checkErr := s.store.UserIsPro(r.Context(), userID)
+			if checkErr != nil {
+				s.serverError(w, "check subscription", checkErr)
+				return
+			}
+			if !pro {
+				writeError(w, http.StatusPaymentRequired,
+					"email notifications are available on the Pro plan")
+				return
+			}
+		}
+		user, err = s.store.SetEmailNotifications(r.Context(), userID, *req.EmailNotifications)
 		if err != nil {
-			s.serverError(w, "check subscription", err)
-			return
-		}
-		if !pro {
-			writeError(w, http.StatusPaymentRequired,
-				"email notifications are available on the Pro plan")
+			if errors.Is(err, store.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "user not found")
+				return
+			}
+			s.serverError(w, "update email preferences", err)
 			return
 		}
 	}
 
-	user, err := s.store.SetEmailNotifications(r.Context(), userID, *req.EmailNotifications)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "user not found")
+	if req.PushNotifications != nil {
+		user, err = s.store.SetPushNotifications(r.Context(), userID, *req.PushNotifications)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "user not found")
+				return
+			}
+			s.serverError(w, "update push preferences", err)
 			return
 		}
-		s.serverError(w, "update preferences", err)
-		return
 	}
+
 	writeJSON(w, http.StatusOK, user)
 }

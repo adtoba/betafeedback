@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_icons.dart';
 import '../theme/app_layout.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
 
 import '../app/app_scope.dart';
 import '../data/app_state.dart';
@@ -11,18 +13,24 @@ import '../models/feedback.dart';
 import '../models/project.dart';
 import '../models/project_platform.dart';
 import '../models/user.dart';
+import '../widgets/app_header.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/feedback_card.dart';
 import '../widgets/grouped_list.dart';
+import '../widgets/metric_strip.dart';
 import '../widgets/plan_picker_sheet.dart';
 import '../widgets/project_logo.dart';
+import '../widgets/status_pill.dart';
 import '../widgets/team_member_tile.dart';
 import 'activity_log_screen.dart';
 import 'bug_summary_screen.dart';
 import 'feedback_list_screen.dart';
 import 'invite_member_screen.dart';
+import 'find_testers_screen.dart';
 import 'new_feedback_screen.dart';
 import 'post_release_sheet.dart';
 import 'test_plan_screen.dart';
+import '../widgets/rate_tester_sheet.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   const ProjectDetailScreen({super.key, required this.projectId});
@@ -70,9 +78,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         }
         if (project == null) {
           return Scaffold(
-            appBar: AppBar(
-              centerTitle: false,
-            ),
+            appBar: AppBar(centerTitle: false),
             body: Center(
               child: Text(
                 appState.projectError(widget.projectId) ?? 'Project not found',
@@ -89,10 +95,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         final canStructureOrFix = isDeveloper || isCreator;
         final canReplyToFeedback = isDeveloper || isCreator;
 
-        final messages = project.feedback
-            .where((m) => m.type == FeedbackType.testerMessage)
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        final messages =
+            project.feedback
+                .where((m) => m.type == FeedbackType.testerMessage)
+                .toList()
+              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         final previewMessages = messages
             .take(FeedbackListScreen.previewLimit)
             .toList();
@@ -127,11 +134,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               else if (canStructureOrFix)
                 IconButton(
                   tooltip: 'Export (Pro)',
-                  onPressed: () => showPlanPickerSheet(
+                  onPressed: () => showUpgradeSheet(
                     context,
+                    appState,
                     title: 'Export with Pro',
-                    currentPlan: appState.currentSubscription.plan,
-                    onSelect: (plan) => appState.changePlan(plan),
                   ),
                   icon: const Icon(AppIcons.download),
                 ),
@@ -152,6 +158,19 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               ),
               if (isCreator)
                 IconButton(
+                  tooltip: 'Find testers',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => FindTestersScreen(
+                        projectId: project.id,
+                        projectName: project.name,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(AppIcons.search),
+                ),
+              if (isCreator)
+                IconButton(
                   tooltip: 'Invite member',
                   onPressed: () => _showInvite(context, project.id),
                   icon: const Icon(AppIcons.personAdd),
@@ -162,88 +181,94 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             context,
             CustomScrollView(
               slivers: [
-              SliverToBoxAdapter(
-                child: _ProjectHeader(
-                  project: project,
-                  appState: appState,
-                  onViewBugs: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => BugSummaryScreen(projectId: project.id),
-                    ),
-                  ),
-                  onViewActivity: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          ActivityLogScreen(projectId: project.id),
-                    ),
-                  ),
-                  onViewTestPlan: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => TestPlanScreen(projectId: project.id),
-                    ),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Feedback',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      if (hasMoreFeedback) ...[
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => FeedbackListScreen(
-                                projectId: project.id,
-                              ),
-                            ),
-                          ),
-                          child: Text('See all (${messages.length})'),
+                SliverPadding(
+                  padding: const EdgeInsets.only(top: AppSpace.sm),
+                  sliver: SliverToBoxAdapter(
+                    child: _ProjectHeader(
+                      project: project,
+                      appState: appState,
+                      onViewBugs: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              BugSummaryScreen(projectId: project.id),
                         ),
-                      ],
-                    ],
+                      ),
+                      onViewActivity: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ActivityLogScreen(projectId: project.id),
+                        ),
+                      ),
+                      onViewTestPlan: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => TestPlanScreen(projectId: project.id),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              if (messages.isEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 100),
-                    child: _EmptyFeedback(canSendFeedback: canSendFeedback),
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                  sliver: SliverList.separated(
-                    itemCount: previewMessages.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final message = previewMessages[index];
-                      final author = appState.userById(message.authorId);
-                      final linkedBug = appState.structuredBugForFeedback(
-                        project.id,
-                        message.id,
-                      );
-                      return FeedbackCard(
-                        message: message,
-                        author: author,
-                        structuredBug: linkedBug,
-                        canReply: canReplyToFeedback,
-                        projectId: project.id,
-                      );
-                    },
+                    padding: const EdgeInsets.only(top: AppSpace.xxl),
+                    child: SectionHeader(
+                      title: 'Feedback',
+                      action: hasMoreFeedback
+                          ? TextButton(
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      FeedbackListScreen(projectId: project.id),
+                                ),
+                              ),
+                              child: Text('See all ${messages.length}'),
+                            )
+                          : null,
+                    ),
                   ),
                 ),
-            ],
+                if (messages.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: AppEmptyState(
+                      icon: AppIcons.feedback,
+                      title: 'No reports yet',
+                      message: canSendFeedback
+                          ? 'File the first report and it will show up here for '
+                                'the whole team.'
+                          : 'Nothing from your testers so far. Reports appear '
+                                'here as they come in.',
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpace.gutter,
+                      0,
+                      AppSpace.gutter,
+                      AppSpace.fabClearance,
+                    ),
+                    sliver: SliverList.separated(
+                      itemCount: previewMessages.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: AppSpace.sm + 2),
+                      itemBuilder: (context, index) {
+                        final message = previewMessages[index];
+                        final author = appState.userById(message.authorId);
+                        final linkedBug = appState.structuredBugForFeedback(
+                          project.id,
+                          message.id,
+                        );
+                        return FeedbackCard(
+                          message: message,
+                          author: author,
+                          structuredBug: linkedBug,
+                          canReply: canReplyToFeedback,
+                          projectId: project.id,
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
           ),
           floatingActionButton: canSendFeedback
@@ -251,8 +276,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                   tooltip: 'New feedback',
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) =>
-                          NewFeedbackScreen(projectId: project.id),
+                      builder: (_) => NewFeedbackScreen(projectId: project.id),
                     ),
                   ),
                   child: const Icon(AppIcons.feedbackAdd),
@@ -279,7 +303,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final csv = await appState.exportProject(projectId: projectId, type: type);
+      final csv = await appState.exportProject(
+        projectId: projectId,
+        type: type,
+      );
       await Share.share(csv, subject: 'BetaFeedback $type export');
     } catch (e) {
       messenger.showSnackBar(
@@ -293,6 +320,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     AppState appState,
     Project project,
   ) {
+    final isCreator = project.creatorId == appState.currentUser.id;
     final creator = appState.userById(project.creatorId);
     final testers = project.testerIds
         .map(appState.userById)
@@ -306,38 +334,88 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (context) {
+      builder: (sheetContext) {
         return DraggableScrollableSheet(
           expand: false,
           initialChildSize: 0.6,
           maxChildSize: 0.9,
           builder: (context, controller) => ListView(
             controller: controller,
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            padding: const EdgeInsets.fromLTRB(0, AppSpace.xs, 0, AppSpace.xxl),
             children: [
-              Text(
-                'Team',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpace.gutter + AppSpace.xs,
+                  0,
+                  AppSpace.gutter,
+                  AppSpace.xl,
+                ),
+                child: Text(
+                  'Team',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
               ),
-              const SizedBox(height: 16),
               if (creator != null) ...[
-                _SectionLabel('Creator'),
-                TeamMemberTile(user: creator),
-                const SizedBox(height: 16),
+                GroupedSection(
+                  header: 'Creator',
+                  children: [TeamMemberTile(user: creator)],
+                ),
+                const SizedBox(height: AppSpace.xxl),
               ],
-              _SectionLabel('Testers (${testers.length})'),
-              if (testers.isEmpty)
-                const _EmptyNote('No testers yet.')
-              else
-                ...testers.map((u) => TeamMemberTile(user: u)),
-              const SizedBox(height: 16),
-              _SectionLabel('Developers (${developers.length})'),
-              if (developers.isEmpty)
-                const _EmptyNote('No developers yet.')
-              else
-                ...developers.map((u) => TeamMemberTile(user: u)),
+              GroupedSection(
+                header: 'Testers · ${testers.length}',
+                children: testers.isEmpty
+                    ? [
+                        GroupedNote(
+                          isCreator
+                              ? 'No testers yet. Find people open to testing.'
+                              : 'No testers have joined yet.',
+                        ),
+                        if (isCreator)
+                          GroupedListTile(
+                            icon: AppIcons.search,
+                            title: 'Find testers',
+                            subtitle: 'Invite from the marketplace',
+                            onTap: () {
+                              Navigator.of(sheetContext).pop();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => FindTestersScreen(
+                                    projectId: project.id,
+                                    projectName: project.name,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                      ]
+                    : [
+                        for (final u in testers)
+                          TeamMemberTile(
+                            user: u,
+                            trailing: isCreator
+                                ? TextButton(
+                                    onPressed: () {
+                                      Navigator.of(sheetContext).pop();
+                                      showRateTesterSheet(
+                                        context,
+                                        projectId: project.id,
+                                        tester: u,
+                                      );
+                                    },
+                                    child: const Text('Rate'),
+                                  )
+                                : null,
+                          ),
+                      ],
+              ),
+              const SizedBox(height: AppSpace.xxl),
+              GroupedSection(
+                header: 'Developers · ${developers.length}',
+                children: developers.isEmpty
+                    ? const [GroupedNote('No developers have joined yet.')]
+                    : [for (final u in developers) TeamMemberTile(user: u)],
+              ),
             ],
           ),
         );
@@ -373,9 +451,7 @@ class _ProjectHeader extends StatelessWidget {
       ];
     }
     if (project.appLink != null) {
-      return [
-        (icon: AppIcons.link, label: 'App link', url: project.appLink!),
-      ];
+      return [(icon: AppIcons.link, label: 'App link', url: project.appLink!)];
     }
     return [];
   }
@@ -390,13 +466,50 @@ class _ProjectHeader extends StatelessWidget {
         .length;
     final activityCount = appState.activityForProject(project.id).length;
     final links = _links;
+    final theme = Theme.of(context);
+    final tones = AppTones.of(context);
+    final reportCount = project.feedback
+        .where((m) => m.type == FeedbackType.testerMessage)
+        .length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (project.description.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter + AppSpace.xs,
+              0,
+              AppSpace.gutter + AppSpace.xs,
+              AppSpace.lg,
+            ),
+            child: Text(
+              project.description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+          child: MetricStrip(
+            metrics: [
+              Metric(label: 'Testers', value: '${project.testerCount}'),
+              Metric(label: 'Reports', value: '$reportCount'),
+              Metric(
+                label: 'Open bugs',
+                value: '$openBugs',
+                tint: openBugs > 0 ? tones.warning : null,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpace.xxl),
         if (links.isNotEmpty) ...[
           GroupedSection(
-            header: 'Links',
+            header: 'Test builds',
             children: [
               for (final link in links)
                 _CompactLinkRow(
@@ -406,7 +519,7 @@ class _ProjectHeader extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpace.xxl),
         ],
         GroupedSection(
           header: 'Project',
@@ -417,39 +530,24 @@ class _ProjectHeader extends StatelessWidget {
               subtitle: project.testPlan.isEmpty
                   ? 'No instructions yet'
                   : '${project.testPlan.length} '
-                      '${project.testPlan.length == 1 ? "item" : "items"} to check',
+                        '${project.testPlan.length == 1 ? "item" : "items"} to check',
               onTap: onViewTestPlan,
             ),
             GroupedListTile(
               icon: AppIcons.sparkles,
+              iconColor: tones.warning,
               title: 'Bug summary',
               subtitle: suggestedBugs > 0
                   ? '$suggestedBugs to review · $openBugs open'
                   : '${project.structuredBugs.length} structured · $openBugs open',
               trailing: suggestedBugs > 0
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '$suggestedBugs',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onError,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    )
+                  ? CountBadge(count: suggestedBugs)
                   : null,
               onTap: onViewBugs,
             ),
             GroupedListTile(
               icon: AppIcons.history,
+              iconColor: theme.colorScheme.secondary,
               title: 'Activity log',
               subtitle: activityCount == 0
                   ? 'No activity yet'
@@ -458,7 +556,6 @@ class _ProjectHeader extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
       ],
     );
   }
@@ -503,23 +600,20 @@ class _CompactLinkRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final actionColor = scheme.onSurfaceVariant.withValues(alpha: 0.65);
+    final actionColor = scheme.onSurfaceVariant.withValues(alpha: 0.7);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.md + 2,
+        AppSpace.sm - 1,
+        AppSpace.sm,
+        AppSpace.sm - 1,
+      ),
       child: Row(
         children: [
-          const SizedBox(width: 8),
-          Icon(icon, size: 18, color: scheme.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+          IconTile(icon: icon, tint: scheme.primary),
+          const SizedBox(width: AppSpace.md),
+          Expanded(child: Text(label, style: theme.textTheme.bodyLarge)),
           IconButton(
             tooltip: 'Copy $label link',
             onPressed: () =>
@@ -533,94 +627,8 @@ class _CompactLinkRow extends StatelessWidget {
             icon: Icon(AppIcons.externalLink, size: 18, color: actionColor),
             visualDensity: VisualDensity.compact,
           ),
-          const SizedBox(width: 4),
         ],
       ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
-            ),
-      ),
-    );
-  }
-}
-
-class _EmptyNote extends StatelessWidget {
-  const _EmptyNote(this.message);
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        message,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-      ),
-    );
-  }
-}
-
-class _EmptyFeedback extends StatelessWidget {
-  const _EmptyFeedback({required this.canSendFeedback});
-
-  final bool canSendFeedback;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GroupedSection(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
-          child: Column(
-            children: [
-              Icon(
-                AppIcons.feedback,
-                size: 40,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'No feedback yet',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                canSendFeedback
-                    ? 'Tap + to file the first test report.'
-                    : 'Testers haven\'t filed any reports yet.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

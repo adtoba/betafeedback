@@ -4,3 +4,5 @@
 
 # Uploaded media (local storage)
 data/
+.firebase-service-account.json
+firebase-service-account.json

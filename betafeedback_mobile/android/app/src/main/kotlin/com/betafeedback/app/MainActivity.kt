@@ -1,4 +1,4 @@
-package com.example.betafeedback_mobile
+package com.betafeedback.app
 
 import io.flutter.embedding.android.FlutterActivity
 

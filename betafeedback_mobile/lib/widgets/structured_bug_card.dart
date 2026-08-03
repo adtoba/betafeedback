@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_icons.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
 
 import '../app/app_scope.dart';
 import '../models/feedback.dart';
 import 'edit_bug_sheet.dart';
 import 'fix_bug_sheet.dart';
+import 'status_pill.dart';
 import '../models/release.dart';
 
 class StructuredBugCard extends StatelessWidget {
@@ -38,6 +41,13 @@ class StructuredBugCard extends StatelessWidget {
   final VoidCallback? onReopen;
   final String? reporterName;
 
+  static const ButtonStyle _actionStyle = ButtonStyle(
+    minimumSize: WidgetStatePropertyAll(Size(0, 42)),
+    padding: WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: AppSpace.lg),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -48,18 +58,20 @@ class StructuredBugCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpace.lg - 1),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 _StatusChip(status: bug.status),
-                const Spacer(),
+                const SizedBox(width: AppSpace.sm - 2),
                 _SeverityChip(severity: bug.severity),
+                const Spacer(),
                 if (canManage && !isSuggested && !isFixed)
                   PopupMenuButton<String>(
                     tooltip: 'Actions',
+                    padding: EdgeInsets.zero,
                     onSelected: (action) => _handleAction(context, action),
                     itemBuilder: (context) => [
                       if (isOpen || isNeedsInfo)
@@ -91,144 +103,80 @@ class StructuredBugCard extends StatelessWidget {
                   ),
               ],
             ),
-            if (isSuggested) ...[
-              const SizedBox(height: 12),
-              Text(
-                'AI draft from tester feedback — review before confirming.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-            if (isNeedsInfo) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Waiting on the tester for more details.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md + 2),
             Text(
               bug.title,
               style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
                 decoration: isFixed ? TextDecoration.lineThrough : null,
-                height: 1.2,
+                decorationColor: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            if (reporterName != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Reported by $reporterName',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+            if (reporterName != null || isSuggested || isNeedsInfo) ...[
+              const SizedBox(height: AppSpace.xs),
+              Text(switch (bug.status) {
+                BugStatus.suggested =>
+                  'AI draft from tester feedback — review before confirming.',
+                BugStatus.needsInfo =>
+                  'Waiting on the tester for more details.',
+                _ => 'Reported by $reporterName',
+              }, style: theme.textTheme.bodySmall),
             ],
-            const SizedBox(height: 16),
-            _BugSection(
-              title: 'Steps to reproduce',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: bug.stepsToReproduce
-                    .asMap()
-                    .entries
-                    .map(
-                      (e) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text('${e.key + 1}. ${e.value}'),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _BugSection(
-              title: 'Expected',
-              child: Text(bug.expectedBehavior),
-            ),
-            const SizedBox(height: 12),
-            _BugSection(
-              title: 'Actual',
-              child: Text(bug.actualBehavior),
-            ),
+            const SizedBox(height: AppSpace.lg),
+            _BugDetails(bug: bug),
             if (isFixed) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpace.md),
+              _FixedBanner(label: _fixedLabel(bug), note: bug.fixNote),
+            ],
+            if (isSuggested && canManage) ...[
+              const SizedBox(height: AppSpace.lg),
               Row(
                 children: [
-                  Icon(
-                    AppIcons.checkCircle,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      _fixedLabel(bug),
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
+                    child: OutlinedButton(
+                      onPressed: onDismiss,
+                      style: _actionStyle,
+                      child: const Text('Dismiss'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpace.sm + 2),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: onConfirm,
+                      style: _actionStyle,
+                      child: const Text('Confirm bug'),
                     ),
                   ),
                 ],
               ),
-              if (bug.fixNote != null && bug.fixNote!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  bug.fixNote!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
-            if (isSuggested && canManage) ...[
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton.icon(
-                    onPressed: onDismiss,
-                    icon: const Icon(AppIcons.close, size: 18),
-                    label: const Text('Dismiss'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: onConfirm,
-                    icon: const Icon(AppIcons.check, size: 18),
-                    label: const Text('Confirm bug'),
-                  ),
-                ],
-              ),
             ] else if (isOpen && canManage) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpace.lg),
               Align(
                 alignment: Alignment.centerRight,
-                child: FilledButton.tonalIcon(
+                child: OutlinedButton.icon(
                   onPressed: () => _openFixSheet(context),
-                  icon: const Icon(AppIcons.check, size: 18),
+                  style: _actionStyle,
+                  icon: const Icon(AppIcons.check, size: 17),
                   label: const Text('Mark as fixed'),
                 ),
               ),
             ] else if (isNeedsInfo && canManage) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpace.lg),
               Align(
                 alignment: Alignment.centerRight,
-                child: FilledButton.tonalIcon(
+                child: OutlinedButton.icon(
                   onPressed: onResume,
-                  icon: const Icon(AppIcons.repeat, size: 18),
+                  style: _actionStyle,
+                  icon: const Icon(AppIcons.repeat, size: 17),
                   label: const Text('Back to open'),
                 ),
               ),
             ] else if (isFixed && canManage) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpace.sm),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: onReopen,
-                  icon: const Icon(AppIcons.repeat, size: 18),
+                  icon: const Icon(AppIcons.repeat, size: 16),
                   label: const Text('Reopen'),
                 ),
               ),
@@ -272,39 +220,164 @@ class StructuredBugCard extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => FixBugSheet(
-        projectId: projectId,
-        bugId: bug.id,
-        releases: releases,
-      ),
+      builder: (_) =>
+          FixBugSheet(projectId: projectId, bugId: bug.id, releases: releases),
     ).then((_) => onMarkFixed());
   }
 }
 
-class _BugSection extends StatelessWidget {
-  const _BugSection({required this.title, required this.child});
+/// Steps, expected, and actual behaviour on a sunken panel so the report body
+/// reads as evidence rather than more card copy.
+class _BugDetails extends StatelessWidget {
+  const _BugDetails({required this.bug});
 
-  final String title;
-  final Widget child;
+  final StructuredBug bug;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tones = AppTones.of(context);
+    final blocks = <Widget>[
+      if (bug.stepsToReproduce.isNotEmpty)
+        _Block(
+          label: 'Steps to reproduce',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < bug.stepsToReproduce.length; i++)
+                Padding(
+                  padding: EdgeInsets.only(
+                    bottom: i == bug.stepsToReproduce.length - 1
+                        ? 0
+                        : AppSpace.xs + 1,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        child: Text(
+                          '${i + 1}',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          bug.stepsToReproduce[i],
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      if (bug.expectedBehavior.isNotEmpty)
+        _Block(
+          label: 'Expected',
+          child: Text(bug.expectedBehavior, style: theme.textTheme.bodyMedium),
+        ),
+      if (bug.actualBehavior.isNotEmpty)
+        _Block(
+          label: 'Actual',
+          child: Text(bug.actualBehavior, style: theme.textTheme.bodyMedium),
+        ),
+    ];
 
+    if (blocks.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpace.md + 2),
+      decoration: BoxDecoration(
+        color: tones.canvas,
+        borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < blocks.length; i++) ...[
+            if (i > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
+                child: Divider(color: tones.hairline),
+              ),
+            blocks[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Block extends StatelessWidget {
+  const _Block({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          title.toUpperCase(),
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpace.xs + 2),
         child,
       ],
+    );
+  }
+}
+
+class _FixedBanner extends StatelessWidget {
+  const _FixedBanner({required this.label, this.note});
+
+  final String label;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final green = theme.colorScheme.tertiary;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpace.md),
+      decoration: BoxDecoration(
+        color: green.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+        border: Border.all(
+          color: green.withValues(alpha: 0.22),
+          width: AppStroke.thin,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(AppIcons.checkCircle, size: 16, color: green),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.titleSmall?.copyWith(color: green),
+                ),
+                if (note != null && note!.isNotEmpty) ...[
+                  const SizedBox(height: AppSpace.xs),
+                  Text(note!, style: theme.textTheme.bodySmall),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -314,38 +387,18 @@ class _SeverityChip extends StatelessWidget {
 
   final String severity;
 
-  Color _color(ColorScheme scheme) {
-    switch (severity) {
-      case 'Critical':
-        return scheme.error;
-      case 'High':
-        return Colors.orange.shade700;
-      case 'Medium':
-        return Colors.amber.shade800;
-      default:
-        return scheme.outline;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final color = _color(Theme.of(context).colorScheme);
+    final scheme = Theme.of(context).colorScheme;
+    final tones = AppTones.of(context);
+    final color = switch (severity) {
+      'Critical' => scheme.error,
+      'High' => tones.warning,
+      'Medium' => scheme.onSurfaceVariant,
+      _ => scheme.onSurfaceVariant,
+    };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        border: Border.all(color: color),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        severity,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
+    return StatusPill(label: severity, color: color);
   }
 }
 
@@ -357,55 +410,15 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tones = AppTones.of(context);
 
-    final (Color bg, Color fg, IconData icon, String label) = switch (status) {
-      BugStatus.fixed => (
-          scheme.primaryContainer,
-          scheme.onPrimaryContainer,
-          AppIcons.checkCircle,
-          'Fixed',
-        ),
-      BugStatus.suggested => (
-          scheme.tertiaryContainer,
-          scheme.onTertiaryContainer,
-          AppIcons.sparkles,
-          'Suggested',
-        ),
-      BugStatus.needsInfo => (
-          scheme.secondaryContainer,
-          scheme.onSecondaryContainer,
-          AppIcons.flag,
-          'Needs info',
-        ),
-      BugStatus.open => (
-          scheme.errorContainer,
-          scheme.onErrorContainer,
-          AppIcons.error,
-          'Open',
-        ),
+    final (Color color, IconData icon, String label) = switch (status) {
+      BugStatus.fixed => (scheme.tertiary, AppIcons.checkCircle, 'Fixed'),
+      BugStatus.suggested => (scheme.secondary, AppIcons.sparkles, 'Suggested'),
+      BugStatus.needsInfo => (scheme.primary, AppIcons.flag, 'Needs info'),
+      BugStatus.open => (tones.warning, AppIcons.bug, 'Open'),
     };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: fg),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: fg,
-            ),
-          ),
-        ],
-      ),
-    );
+    return StatusPill(label: label, color: color, icon: icon, solid: true);
   }
 }

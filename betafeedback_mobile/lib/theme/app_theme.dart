@@ -2,10 +2,113 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Shared brand colors used on both iOS and Android.
+import 'app_tokens.dart';
+
+/// Brand palette.
+///
+/// The neutrals are deliberately warm — paper in light mode, soot in dark —
+/// so the blue reads as ink on paper rather than as a stock system accent.
 abstract final class AppColors {
-  static const Color systemBlue = Color(0xFF007AFF);
-  static const Color systemBlueDark = Color(0xFF0A84FF);
+  // Brand blue: deeper and slightly cooler than the platform default.
+  static const Color blue = Color(0xFF1256E0);
+  static const Color blueDark = Color(0xFF5C97FF);
+
+  static const Color violet = Color(0xFF5B4BE1);
+  static const Color violetDark = Color(0xFF9B8CFF);
+
+  static const Color green = Color(0xFF16875A);
+  static const Color greenDark = Color(0xFF3FCB84);
+
+  static const Color amber = Color(0xFFB0700C);
+  static const Color amberDark = Color(0xFFE7A93F);
+
+  static const Color red = Color(0xFFD23F31);
+  static const Color redDark = Color(0xFFFF6B5E);
+
+  // Light neutrals.
+  static const Color paper = Color(0xFFF5F4F1);
+  static const Color card = Color(0xFFFFFFFF);
+  static const Color sunken = Color(0xFFEBE9E4);
+  static const Color ink = Color(0xFF16171A);
+  static const Color inkMuted = Color(0xFF6C6F76);
+  static const Color hairline = Color(0xFFE0DED8);
+
+  // Dark neutrals.
+  static const Color soot = Color(0xFF0B0C0E);
+  static const Color cardDark = Color(0xFF16181C);
+  static const Color sunkenDark = Color(0xFF202328);
+  static const Color inkDark = Color(0xFFF3F3F1);
+  static const Color inkMutedDark = Color(0xFF9A9CA3);
+  static const Color hairlineDark = Color(0xFF2A2D33);
+}
+
+/// Tones the Material [ColorScheme] has no slot for: hairline rules, sunken
+/// fills, the amber "needs attention" accent, and the unread dot.
+@immutable
+class AppTones extends ThemeExtension<AppTones> {
+  const AppTones({
+    required this.hairline,
+    required this.sunken,
+    required this.canvas,
+    required this.warning,
+    required this.warningContainer,
+    required this.unread,
+  });
+
+  final Color hairline;
+  final Color sunken;
+  final Color canvas;
+  final Color warning;
+  final Color warningContainer;
+  final Color unread;
+
+  static AppTones of(BuildContext context) =>
+      Theme.of(context).extension<AppTones>() ?? _fallback;
+
+  static const _fallback = AppTones(
+    hairline: AppColors.hairline,
+    sunken: AppColors.sunken,
+    canvas: AppColors.paper,
+    warning: AppColors.amber,
+    warningContainer: Color(0x1AB0700C),
+    unread: AppColors.red,
+  );
+
+  @override
+  AppTones copyWith({
+    Color? hairline,
+    Color? sunken,
+    Color? canvas,
+    Color? warning,
+    Color? warningContainer,
+    Color? unread,
+  }) {
+    return AppTones(
+      hairline: hairline ?? this.hairline,
+      sunken: sunken ?? this.sunken,
+      canvas: canvas ?? this.canvas,
+      warning: warning ?? this.warning,
+      warningContainer: warningContainer ?? this.warningContainer,
+      unread: unread ?? this.unread,
+    );
+  }
+
+  @override
+  AppTones lerp(AppTones? other, double t) {
+    if (other == null) return this;
+    return AppTones(
+      hairline: Color.lerp(hairline, other.hairline, t)!,
+      sunken: Color.lerp(sunken, other.sunken, t)!,
+      canvas: Color.lerp(canvas, other.canvas, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
+      warningContainer: Color.lerp(
+        warningContainer,
+        other.warningContainer,
+        t,
+      )!,
+      unread: Color.lerp(unread, other.unread, t)!,
+    );
+  }
 }
 
 /// Light and dark themes with a shared brand look and platform-native behavior.
@@ -21,9 +124,9 @@ class AppTheme {
     final isDark = brightness == Brightness.dark;
     return CupertinoThemeData(
       brightness: brightness,
-      primaryColor: isDark ? AppColors.systemBlueDark : AppColors.systemBlue,
-      scaffoldBackgroundColor: _groupedBackground(isDark, apple: true),
-      barBackgroundColor: _elevatedSurface(isDark, apple: true),
+      primaryColor: isDark ? AppColors.blueDark : AppColors.blue,
+      scaffoldBackgroundColor: isDark ? AppColors.soot : AppColors.paper,
+      barBackgroundColor: isDark ? AppColors.cardDark : AppColors.card,
       applyThemeToAll: true,
     );
   }
@@ -31,26 +134,30 @@ class AppTheme {
   static ThemeData _material(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final isApple = _isApple;
-    final scheme =
-        isApple ? _iosColorScheme(brightness) : _androidColorScheme(brightness);
+    final scheme = _scheme(brightness);
+    final tones = _tones(brightness);
+    final text = _textTheme(scheme);
 
     return ThemeData(
       useMaterial3: true,
       platform: isApple ? TargetPlatform.iOS : TargetPlatform.android,
       colorScheme: scheme,
-      scaffoldBackgroundColor: _groupedBackground(isDark, apple: isApple),
+      scaffoldBackgroundColor: tones.canvas,
+      canvasColor: tones.canvas,
+      extensions: [tones],
+      textTheme: text,
+      primaryTextTheme: text,
       appBarTheme: AppBarTheme(
         centerTitle: true,
+        elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: _groupedBackground(isDark, apple: isApple),
+        backgroundColor: tones.canvas,
         foregroundColor: scheme.onSurface,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: TextStyle(
-          color: scheme.onSurface,
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          letterSpacing: isApple ? -0.4 : 0,
-        ),
+        titleTextStyle: text.titleMedium,
+        toolbarHeight: 52,
+        iconTheme: IconThemeData(color: scheme.onSurface, size: 22),
+        actionsIconTheme: IconThemeData(color: scheme.primary, size: 22),
       ),
       pageTransitionsTheme: isApple
           ? const PageTransitionsTheme(
@@ -64,262 +171,384 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
+        color: isDark ? AppColors.cardDark : AppColors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(color: tones.hairline, width: AppStroke.hairline),
         ),
-        color: _elevatedSurface(isDark, apple: isApple),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: scheme.primary,
           foregroundColor: scheme.onPrimary,
-          disabledBackgroundColor: scheme.primary.withValues(alpha: 0.35),
+          disabledBackgroundColor: scheme.primary.withValues(alpha: 0.3),
           disabledForegroundColor: scheme.onPrimary.withValues(alpha: 0.6),
           elevation: 0,
           minimumSize: const Size(0, 50),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
+          textStyle: text.labelLarge,
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
-        elevation: isApple ? 2 : 4,
-        focusElevation: isApple ? 4 : 6,
-        hoverElevation: isApple ? 4 : 6,
-        highlightElevation: isApple ? 6 : 8,
+        elevation: 3,
+        focusElevation: 4,
+        hoverElevation: 4,
+        highlightElevation: 6,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        extendedSizeConstraints:
-            const BoxConstraints.tightFor(height: 56),
-        extendedPadding: const EdgeInsets.symmetric(horizontal: 24),
-        extendedTextStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 16,
-        ),
+        extendedSizeConstraints: const BoxConstraints.tightFor(height: 52),
+        extendedPadding: const EdgeInsets.symmetric(horizontal: AppSpace.xl),
+        extendedTextStyle: text.labelLarge,
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: scheme.primary,
+          foregroundColor: scheme.onSurface,
+          backgroundColor: isDark ? AppColors.cardDark : AppColors.card,
           minimumSize: const Size(0, 50),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          side: BorderSide(color: scheme.outline),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
+          side: BorderSide(color: tones.hairline, width: AppStroke.thin),
+          textStyle: text.labelLarge,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: scheme.primary,
-          textStyle: const TextStyle(fontWeight: FontWeight.w400, fontSize: 17),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+          minimumSize: const Size(0, 40),
+          textStyle: text.titleSmall,
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: scheme.onSurfaceVariant,
+          highlightColor: scheme.primary.withValues(alpha: 0.08),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: _fillColor(isDark, apple: isApple),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+        fillColor: isDark ? AppColors.cardDark : AppColors.card,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.lg,
+          vertical: AppSpace.md + 2,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+        hintStyle: text.bodyLarge?.copyWith(
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: scheme.primary, width: 2),
-        ),
+        labelStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        floatingLabelStyle: text.labelMedium?.copyWith(color: scheme.primary),
+        border: _inputBorder(tones.hairline, AppStroke.thin),
+        enabledBorder: _inputBorder(tones.hairline, AppStroke.thin),
+        focusedBorder: _inputBorder(scheme.primary, AppStroke.focus),
+        errorBorder: _inputBorder(scheme.error, AppStroke.thin),
+        focusedErrorBorder: _inputBorder(scheme.error, AppStroke.focus),
       ),
       chipTheme: ChipThemeData(
-        side: BorderSide.none,
-        selectedColor: scheme.primary.withValues(alpha: isDark ? 0.28 : 0.14),
+        side: BorderSide(color: tones.hairline, width: AppStroke.thin),
+        backgroundColor: isDark ? AppColors.cardDark : AppColors.card,
+        selectedColor: scheme.primary.withValues(alpha: isDark ? 0.24 : 0.12),
         checkmarkColor: scheme.primary,
-        labelStyle: TextStyle(
-          color: scheme.onSurface,
-          fontWeight: FontWeight.w500,
-          fontSize: 15,
+        showCheckmark: false,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.md,
+          vertical: AppSpace.sm,
         ),
+        labelStyle: text.titleSmall,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: _elevatedSurface(isDark, apple: isApple),
+        backgroundColor: isDark ? AppColors.cardDark : AppColors.card,
         elevation: 0,
-        height: 64,
-        indicatorColor: scheme.primary.withValues(alpha: isDark ? 0.24 : 0.12),
+        height: 62,
+        indicatorColor: scheme.primary.withValues(alpha: isDark ? 0.22 : 0.1),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: scheme.primary, size: 24);
-          }
-          return IconThemeData(color: scheme.onSurfaceVariant, size: 24);
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? scheme.primary : scheme.onSurfaceVariant,
+            size: 23,
+          );
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TextStyle(
-              color: scheme.primary,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            );
-          }
+          final selected = states.contains(WidgetState.selected);
           return TextStyle(
-            color: scheme.onSurfaceVariant,
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
+            color: selected ? scheme.primary : scheme.onSurfaceVariant,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0,
           );
         }),
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
+      bottomSheetTheme: BottomSheetThemeData(
         showDragHandle: true,
+        backgroundColor: tones.canvas,
+        surfaceTintColor: Colors.transparent,
+        dragHandleColor: scheme.onSurfaceVariant.withValues(alpha: 0.35),
+        dragHandleSize: const Size(36, 4),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.xl),
+          ),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: isDark ? AppColors.cardDark : AppColors.card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        titleTextStyle: text.titleLarge,
+        contentTextStyle: text.bodyMedium,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: isDark ? AppColors.cardDark : AppColors.card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shadowColor: Colors.black.withValues(alpha: 0.18),
+        textStyle: text.bodyMedium,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(color: tones.hairline, width: AppStroke.hairline),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: scheme.inverseSurface,
+        contentTextStyle: text.bodyMedium?.copyWith(
+          color: scheme.onInverseSurface,
+        ),
+        elevation: 4,
+        insetPadding: const EdgeInsets.all(AppSpace.lg),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: scheme.outline.withValues(alpha: 0.5),
-        space: 1,
-        thickness: 0.5,
+        color: tones.hairline,
+        space: AppStroke.hairline,
+        thickness: AppStroke.hairline,
       ),
-      iconTheme: IconThemeData(
-        color: scheme.onSurfaceVariant,
-        size: 22,
+      iconTheme: IconThemeData(color: scheme.onSurfaceVariant, size: 22),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: scheme.primary,
+        linearMinHeight: 3,
+        linearTrackColor: tones.sunken,
       ),
       listTileTheme: ListTileThemeData(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
         iconColor: scheme.primary,
-        titleTextStyle: TextStyle(
-          color: scheme.onSurface,
-          fontSize: 17,
-          fontWeight: FontWeight.w400,
-        ),
-        subtitleTextStyle: TextStyle(
+        titleTextStyle: text.bodyLarge,
+        subtitleTextStyle: text.bodySmall?.copyWith(
           color: scheme.onSurfaceVariant,
-          fontSize: 15,
         ),
       ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: scheme.inverseSurface,
+          borderRadius: BorderRadius.circular(AppRadius.xs),
+        ),
+        textStyle: text.bodySmall?.copyWith(color: scheme.onInverseSurface),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: const WidgetStatePropertyAll(Colors.white),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return scheme.primary;
+          return tones.sunken;
+        }),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
       splashFactory: isApple ? NoSplash.splashFactory : null,
-      highlightColor:
-          isApple ? scheme.primary.withValues(alpha: 0.08) : null,
+      highlightColor: isApple ? scheme.primary.withValues(alpha: 0.06) : null,
     );
   }
 
-  static Color _groupedBackground(bool isDark, {required bool apple}) {
-    if (apple) {
-      return isDark
-          ? CupertinoColors.black
-          : CupertinoColors.systemGroupedBackground;
-    }
-    return isDark ? const Color(0xFF121212) : const Color(0xFFF3F3F3);
+  static OutlineInputBorder _inputBorder(Color color, double width) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderSide: BorderSide(color: color, width: width),
+    );
   }
 
-  static Color _elevatedSurface(bool isDark, {required bool apple}) {
-    if (apple) {
-      return isDark
-          ? CupertinoColors.secondarySystemGroupedBackground.darkColor
-          : CupertinoColors.secondarySystemGroupedBackground;
-    }
-    return isDark ? const Color(0xFF1E1E1E) : Colors.white;
+  /// Type scale built on the platform UI font. Large sizes get negative
+  /// tracking so headings read tight and intentional instead of default.
+  static TextTheme _textTheme(ColorScheme scheme) {
+    final ink = scheme.onSurface;
+    final muted = scheme.onSurfaceVariant;
+
+    return TextTheme(
+      displayLarge: TextStyle(
+        fontSize: 40,
+        height: 1.05,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -1.4,
+        color: ink,
+      ),
+      displayMedium: TextStyle(
+        fontSize: 36,
+        height: 1.06,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -1.2,
+        color: ink,
+      ),
+      displaySmall: TextStyle(
+        fontSize: 32,
+        height: 1.08,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.9,
+        color: ink,
+      ),
+      headlineLarge: TextStyle(
+        fontSize: 28,
+        height: 1.12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.7,
+        color: ink,
+      ),
+      headlineMedium: TextStyle(
+        fontSize: 24,
+        height: 1.16,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.5,
+        color: ink,
+      ),
+      headlineSmall: TextStyle(
+        fontSize: 21,
+        height: 1.2,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.4,
+        color: ink,
+      ),
+      titleLarge: TextStyle(
+        fontSize: 19,
+        height: 1.22,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.4,
+        color: ink,
+      ),
+      titleMedium: TextStyle(
+        fontSize: 17,
+        height: 1.25,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.3,
+        color: ink,
+      ),
+      titleSmall: TextStyle(
+        fontSize: 15,
+        height: 1.28,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+        color: ink,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: 17,
+        height: 1.38,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -0.3,
+        color: ink,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 15,
+        height: 1.44,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -0.1,
+        color: ink,
+      ),
+      bodySmall: TextStyle(
+        fontSize: 13,
+        height: 1.38,
+        fontWeight: FontWeight.w400,
+        color: muted,
+      ),
+      labelLarge: TextStyle(
+        fontSize: 16,
+        height: 1.2,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+        color: ink,
+      ),
+      labelMedium: TextStyle(
+        fontSize: 13,
+        height: 1.2,
+        fontWeight: FontWeight.w600,
+        color: ink,
+      ),
+      // Eyebrow / section headers — uppercase, wide tracking.
+      labelSmall: TextStyle(
+        fontSize: 11,
+        height: 1.2,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.7,
+        color: muted,
+      ),
+    );
   }
 
-  static Color _fillColor(bool isDark, {required bool apple}) {
-    if (apple) {
-      return isDark
-          ? CupertinoColors.tertiarySystemFill.darkColor
-          : CupertinoColors.tertiarySystemFill;
-    }
-    return isDark
-        ? Colors.white.withValues(alpha: 0.06)
-        : Colors.black.withValues(alpha: 0.04);
-  }
-
-  static ColorScheme _sharedScheme(Brightness brightness, {
-    required Color surface,
-    required Color onSurface,
-    required Color onSurfaceVariant,
-    required Color outline,
-    required Color surfaceContainer,
-  }) {
+  static AppTones _tones(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    const redLight = Color(0xFFFF3B30);
-    const redDark = Color(0xFFFF453A);
-    const indigo = Color(0xFF5856D6);
-    const green = Color(0xFF34C759);
-    final primary =
-        isDark ? AppColors.systemBlueDark : AppColors.systemBlue;
-    final error = isDark ? redDark : redLight;
+    return AppTones(
+      hairline: isDark ? AppColors.hairlineDark : AppColors.hairline,
+      sunken: isDark ? AppColors.sunkenDark : AppColors.sunken,
+      canvas: isDark ? AppColors.soot : AppColors.paper,
+      warning: isDark ? AppColors.amberDark : AppColors.amber,
+      warningContainer: (isDark ? AppColors.amberDark : AppColors.amber)
+          .withValues(alpha: isDark ? 0.22 : 0.12),
+      unread: isDark ? AppColors.redDark : AppColors.red,
+    );
+  }
+
+  static ColorScheme _scheme(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final primary = isDark ? AppColors.blueDark : AppColors.blue;
+    final violet = isDark ? AppColors.violetDark : AppColors.violet;
+    final green = isDark ? AppColors.greenDark : AppColors.green;
+    final error = isDark ? AppColors.redDark : AppColors.red;
+    final containerAlpha = isDark ? 0.22 : 0.12;
 
     return ColorScheme(
       brightness: brightness,
       primary: primary,
       onPrimary: Colors.white,
-      primaryContainer: primary.withValues(alpha: isDark ? 0.28 : 0.14),
+      primaryContainer: primary.withValues(alpha: containerAlpha),
       onPrimaryContainer: primary,
-      secondary: indigo,
+      secondary: violet,
       onSecondary: Colors.white,
-      secondaryContainer: indigo.withValues(alpha: isDark ? 0.28 : 0.14),
-      onSecondaryContainer: indigo,
+      secondaryContainer: violet.withValues(alpha: containerAlpha),
+      onSecondaryContainer: violet,
       tertiary: green,
       onTertiary: Colors.white,
-      tertiaryContainer: green.withValues(alpha: isDark ? 0.28 : 0.14),
+      tertiaryContainer: green.withValues(alpha: containerAlpha),
       onTertiaryContainer: green,
       error: error,
       onError: Colors.white,
-      errorContainer: error.withValues(alpha: isDark ? 0.28 : 0.14),
+      errorContainer: error.withValues(alpha: containerAlpha),
       onErrorContainer: error,
-      surface: surface,
-      onSurface: onSurface,
-      surfaceContainerHighest: surfaceContainer,
-      onSurfaceVariant: onSurfaceVariant,
-      outline: outline,
-      outlineVariant: outline.withValues(alpha: 0.55),
+      surface: isDark ? AppColors.cardDark : AppColors.card,
+      onSurface: isDark ? AppColors.inkDark : AppColors.ink,
+      surfaceContainerLowest: isDark ? AppColors.soot : AppColors.paper,
+      surfaceContainerLow: isDark ? AppColors.soot : AppColors.paper,
+      surfaceContainer: isDark ? AppColors.cardDark : AppColors.card,
+      surfaceContainerHigh: isDark ? AppColors.sunkenDark : AppColors.sunken,
+      surfaceContainerHighest: isDark ? AppColors.sunkenDark : AppColors.sunken,
+      onSurfaceVariant: isDark ? AppColors.inkMutedDark : AppColors.inkMuted,
+      outline: isDark ? AppColors.hairlineDark : AppColors.hairline,
+      outlineVariant: isDark ? AppColors.hairlineDark : AppColors.hairline,
       shadow: Colors.black,
       scrim: Colors.black54,
-      inverseSurface: isDark ? Colors.white : const Color(0xFF1C1C1E),
-      onInverseSurface: isDark ? Colors.black : Colors.white,
-      inversePrimary: isDark ? AppColors.systemBlue : AppColors.systemBlueDark,
+      inverseSurface: isDark
+          ? const Color(0xFFF3F3F1)
+          : const Color(0xFF23252A),
+      onInverseSurface: isDark ? AppColors.ink : Colors.white,
+      inversePrimary: isDark ? AppColors.blue : AppColors.blueDark,
       surfaceTint: Colors.transparent,
-    );
-  }
-
-  static ColorScheme _iosColorScheme(Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
-    return _sharedScheme(
-      brightness,
-      surface: _groupedBackground(isDark, apple: true),
-      onSurface:
-          isDark ? CupertinoColors.label.darkColor : CupertinoColors.label,
-      onSurfaceVariant: isDark
-          ? CupertinoColors.secondaryLabel.darkColor
-          : CupertinoColors.secondaryLabel,
-      outline: isDark
-          ? CupertinoColors.separator.darkColor
-          : CupertinoColors.separator,
-      surfaceContainer: isDark
-          ? CupertinoColors.tertiarySystemGroupedBackground.darkColor
-          : CupertinoColors.tertiarySystemGroupedBackground,
-    );
-  }
-
-  static ColorScheme _androidColorScheme(Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
-    return _sharedScheme(
-      brightness,
-      surface: _groupedBackground(isDark, apple: false),
-      onSurface: isDark ? Colors.white : Colors.black87,
-      onSurfaceVariant:
-          isDark ? Colors.white70 : Colors.black.withValues(alpha: 0.55),
-      outline: isDark
-          ? Colors.white24
-          : Colors.black.withValues(alpha: 0.12),
-      surfaceContainer:
-          isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE8E8E8),
     );
   }
 }

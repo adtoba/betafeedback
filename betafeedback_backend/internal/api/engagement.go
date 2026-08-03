@@ -78,6 +78,7 @@ func (s *Server) createRelease(w http.ResponseWriter, r *http.Request, userID st
 		return
 	}
 	go s.emailRelease(context.Background(), id, version, optionalString(req.Notes))
+	go s.pushRelease(context.Background(), id, userID, project.Name, version, optionalString(req.Notes))
 	writeJSON(w, http.StatusCreated, release)
 }
 

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../app/app_scope.dart';
 import '../models/release.dart';
-import '../theme/app_icons.dart';
+import '../theme/app_tokens.dart';
+import 'app_header.dart';
 
 /// Sheet for marking a bug fixed with an optional note and release link.
 class FixBugSheet extends StatefulWidget {
@@ -55,33 +56,21 @@ class _FixBugSheetState extends State<FixBugSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Padding(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 8,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 24,
+        left: AppSpace.xl,
+        right: AppSpace.xl,
+        top: AppSpace.xs,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpace.xxl,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Mark as fixed',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+          const SheetHeader(
+            title: 'Mark as fixed',
+            subtitle: 'Note what changed and link the release it shipped in.',
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Optionally note what changed and link a release.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 20),
           TextField(
             controller: _noteController,
             maxLines: 3,
@@ -93,9 +82,9 @@ class _FixBugSheetState extends State<FixBugSheet> {
             ),
           ),
           if (widget.releases.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpace.lg),
             DropdownButtonFormField<String?>(
-              value: _releaseId,
+              initialValue: _releaseId,
               decoration: const InputDecoration(
                 labelText: 'Fixed in release (optional)',
               ),
@@ -105,25 +94,26 @@ class _FixBugSheetState extends State<FixBugSheet> {
                   child: Text('No release linked'),
                 ),
                 for (final r in widget.releases)
-                  DropdownMenuItem(
-                    value: r.id,
-                    child: Text(r.version),
-                  ),
+                  DropdownMenuItem(value: r.id, child: Text(r.version)),
               ],
-              onChanged: _submitting ? null : (v) => setState(() => _releaseId = v),
+              onChanged: _submitting
+                  ? null
+                  : (v) => setState(() => _releaseId = v),
             ),
           ],
-          const SizedBox(height: 24),
-          FilledButton.icon(
+          const SizedBox(height: AppSpace.xxl),
+          FilledButton(
             onPressed: _submitting ? null : _submit,
-            icon: _submitting
+            child: _submitting
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
                   )
-                : const Icon(AppIcons.check, size: 18),
-            label: const Text('Mark fixed'),
+                : const Text('Mark fixed'),
           ),
         ],
       ),

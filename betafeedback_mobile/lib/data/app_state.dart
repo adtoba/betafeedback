@@ -8,16 +8,45 @@ import '../models/project.dart';
 import '../models/release.dart';
 import '../models/subscription.dart';
 import '../models/test_item.dart';
+import '../models/tester.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
+import '../services/billing_service.dart';
+import '../services/google_auth_service.dart';
+import '../services/push_notification_service.dart';
 
 /// Application state backed by the BetaFeedback API. Network calls populate
 /// in-memory caches; the UI reads those caches synchronously via getters and
 /// rebuilds through [notifyListeners].
 class AppState extends ChangeNotifier {
-  AppState({ApiClient? api}) : _api = api ?? ApiClient();
+  AppState({
+    ApiClient? api,
+    GoogleAuthService? googleAuth,
+    PushNotificationService? push,
+    BillingService? billing,
+  }) : this._withApi(
+         api ?? ApiClient(baseUrl: 'http://localhost:8080'),
+         googleAuth,
+         push,
+         billing,
+       );
+
+  AppState._withApi(
+    this._api,
+    GoogleAuthService? googleAuth,
+    PushNotificationService? push,
+    BillingService? billing,
+  ) : _googleAuth = googleAuth ?? GoogleAuthService(api: _api),
+      _push = push ?? PushNotificationService(api: _api),
+      _billing = billing ?? BillingService();
 
   final ApiClient _api;
+  final GoogleAuthService _googleAuth;
+  final PushNotificationService _push;
+  final BillingService _billing;
+
+  PushNotificationService get pushService => _push;
+  BillingService get billing => _billing;
   SharedPreferences? _prefs;
 
   static const _tokenKey = 'auth_token';
@@ -88,7 +117,12 @@ class AppState extends ChangeNotifier {
         final me = await _api.get('/v1/me');
         _currentUser = User.fromJson(me as Map<String, dynamic>);
         _signedIn = true;
-        await Future.wait([loadProjects(), loadNotifications(), loadSubscription()]);
+        await Future.wait([
+          loadProjects(),
+          loadNotifications(),
+          loadSubscription(),
+          loadTesterInvites(),
+        ]);
       } on ApiException {
         // Token invalid/expired or server unreachable — fall back to sign-in.
         await _clearSession();
@@ -97,6 +131,15 @@ class AppState extends ChangeNotifier {
 
     _bootstrapped = true;
     notifyListeners();
+
+    await Future.wait([_push.init(), _billing.init()]);
+    if (_signedIn) {
+      _push.onForegroundMessage = loadNotifications;
+      await Future.wait([
+        _push.registerForSignedInUser(),
+        _billing.identify(currentUser.id),
+      ]);
+    }
   }
 
   // --- Auth ---
@@ -109,11 +152,22 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> verifyEmailCode(String email, String code) async {
-    final res = await _api.post(
-      '/v1/auth/email/verify',
-      {'email': email, 'code': code},
-    ) as Map<String, dynamic>;
+    final res =
+        await _api.post('/v1/auth/email/verify', {'email': email, 'code': code})
+            as Map<String, dynamic>;
 
+    await _establishSession(res);
+  }
+
+  Future<void> signInWithGoogle() async {
+    final idToken = await _googleAuth.signInAndGetIdToken();
+    final res =
+        await _api.post('/v1/auth/google', {'id_token': idToken})
+            as Map<String, dynamic>;
+    await _establishSession(res);
+  }
+
+  Future<void> _establishSession(Map<String, dynamic> res) async {
     final token = res['token'] as String;
     await _prefs?.setString(_tokenKey, token);
     _api.setToken(token);
@@ -121,10 +175,23 @@ class AppState extends ChangeNotifier {
     _signedIn = true;
     notifyListeners();
 
-    await Future.wait([loadProjects(), loadNotifications(), loadSubscription()]);
+    await Future.wait([
+      loadProjects(),
+      loadNotifications(),
+      loadSubscription(),
+      loadTesterInvites(),
+    ]);
+    _push.onForegroundMessage = loadNotifications;
+    await Future.wait([
+      _push.registerForSignedInUser(),
+      _billing.identify(currentUser.id),
+    ]);
   }
 
   Future<void> signOut() async {
+    await _push.unregister();
+    await _billing.logOut();
+    await _googleAuth.signOut();
     await _clearSession();
     notifyListeners();
   }
@@ -139,6 +206,8 @@ class AppState extends ChangeNotifier {
     _users.clear();
     _activityByProject.clear();
     _notifications = [];
+    _testerInvites = [];
+    _pendingTesterInvites = 0;
     _subscription = null;
   }
 
@@ -164,7 +233,13 @@ class AppState extends ChangeNotifier {
   int get projectsCreatedByCurrentUser =>
       _subscription?.projectsCreated ?? myProjects.length;
 
-  bool get isPro => currentSubscription.plan == SubscriptionPlan.pro;
+  bool get isPro {
+    final sub = currentSubscription;
+    if (sub.plan != SubscriptionPlan.pro) return false;
+    return sub.status == SubscriptionStatus.active ||
+        sub.status == SubscriptionStatus.trialing ||
+        sub.status == SubscriptionStatus.pastDue;
+  }
 
   bool get canCreateMoreProjects {
     final limit = currentSubscription.projectLimit;
@@ -270,8 +345,7 @@ class AppState extends ChangeNotifier {
         _api.get('/v1/projects/$id/releases'),
       ]);
 
-      var project =
-          Project.fromJson(results[0] as Map<String, dynamic>);
+      var project = Project.fromJson(results[0] as Map<String, dynamic>);
 
       // Cache member users (with their per-project role).
       for (final m in project.members) {
@@ -324,7 +398,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> createProject({
+  Future<Project> createProject({
     required String name,
     required String description,
     String? appLink,
@@ -333,32 +407,41 @@ class AppState extends ChangeNotifier {
     String? logoFilename,
     String? logoContentType,
   }) async {
-    final res = await _api.post('/v1/projects', {
-      'name': name,
-      'description': description,
-      if (appLink != null && appLink.isNotEmpty) 'app_link': appLink,
-      if (platformLinks.isNotEmpty)
-        'platform_links': platformLinks.map((l) => l.toJson()).toList(),
-    }) as Map<String, dynamic>;
-    final project = Project.fromJson(res);
+    final res =
+        await _api.post('/v1/projects', {
+              'name': name,
+              'description': description,
+              if (appLink != null && appLink.isNotEmpty) 'app_link': appLink,
+              if (platformLinks.isNotEmpty)
+                'platform_links': platformLinks.map((l) => l.toJson()).toList(),
+            })
+            as Map<String, dynamic>;
+    var project = Project.fromJson(res);
 
     if (logoBytes != null &&
         logoFilename != null &&
         logoContentType != null &&
         logoBytes.isNotEmpty) {
-      final upload = await _api.uploadFile(
-        '/v1/projects/${project.id}/media',
-        bytes: logoBytes,
-        filename: logoFilename,
-        contentType: logoContentType,
-      ) as Map<String, dynamic>;
+      final upload =
+          await _api.uploadFile(
+                '/v1/projects/${project.id}/media',
+                bytes: logoBytes,
+                filename: logoFilename,
+                contentType: logoContentType,
+              )
+              as Map<String, dynamic>;
       final logoUrl = upload['url'] as String?;
       if (logoUrl != null && logoUrl.isNotEmpty) {
         await _api.patch('/v1/projects/${project.id}', {'logo_url': logoUrl});
+        project = Project.fromJson({
+          ...res,
+          'logo_url': logoUrl,
+        });
       }
     }
 
     await loadProjects();
+    return project;
   }
 
   Future<void> addMember({
@@ -388,7 +471,8 @@ class AppState extends ChangeNotifier {
       'body': content,
       if (title != null && title.isNotEmpty) 'title': title,
       if (device != null && device.isNotEmpty) 'device': device,
-      if (appVersion != null && appVersion.isNotEmpty) 'app_version': appVersion,
+      if (appVersion != null && appVersion.isNotEmpty)
+        'app_version': appVersion,
       if (platform != null && platform.isNotEmpty) 'platform': platform,
       'screenshots': screenshots.map((s) => s.toJson()).toList(),
     });
@@ -407,12 +491,14 @@ class AppState extends ChangeNotifier {
     required String filename,
     required String contentType,
   }) async {
-    final res = await _api.uploadFile(
-      '/v1/projects/$projectId/media',
-      bytes: bytes,
-      filename: filename,
-      contentType: contentType,
-    ) as Map<String, dynamic>;
+    final res =
+        await _api.uploadFile(
+              '/v1/projects/$projectId/media',
+              bytes: bytes,
+              filename: filename,
+              contentType: contentType,
+            )
+            as Map<String, dynamic>;
     return Screenshot(
       label: res['label'] as String? ?? filename,
       hue: 200,
@@ -471,7 +557,10 @@ class AppState extends ChangeNotifier {
     required String projectId,
     required StructuredBug bug,
   }) async {
-    await _api.patch('/v1/projects/$projectId/bugs/${bug.id}', bug.toUpdateJson());
+    await _api.patch(
+      '/v1/projects/$projectId/bugs/${bug.id}',
+      bug.toUpdateJson(),
+    );
     await loadProject(projectId);
   }
 
@@ -507,10 +596,9 @@ class AppState extends ChangeNotifier {
     required String feedbackId,
     required String body,
   }) async {
-    await _api.post(
-      '/v1/projects/$projectId/feedback/$feedbackId/comments',
-      {'body': body},
-    );
+    await _api.post('/v1/projects/$projectId/feedback/$feedbackId/comments', {
+      'body': body,
+    });
     await loadProject(projectId);
   }
 
@@ -580,10 +668,38 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> changePlan(SubscriptionPlan plan) async {
-    final res = await _api.put('/v1/me/subscription', {
-      'plan': plan.name,
-    }) as Map<String, dynamic>;
+  /// Purchases Pro via RevenueCat. When RC keys are unset (local dev), falls
+  /// back to the development-only `PUT /v1/me/subscription` stub.
+  Future<bool> purchasePro() async {
+    if (_billing.isConfigured) {
+      final ok = await _billing.purchasePro();
+      if (!ok) return false;
+      // Webhook may lag; poll the backend briefly, then trust RC entitlement.
+      await _refreshSubscriptionAfterPurchase();
+      return true;
+    }
+    await _changePlanStub(SubscriptionPlan.pro);
+    return true;
+  }
+
+  Future<bool> restorePurchases() async {
+    if (!_billing.isConfigured) return false;
+    final ok = await _billing.restorePurchases();
+    if (ok) {
+      await _refreshSubscriptionAfterPurchase();
+    }
+    return ok;
+  }
+
+  Future<void> manageSubscription() => _billing.manageSubscription();
+
+  /// Dev-only plan flip (backend rejects this outside ENV=development).
+  Future<void> changePlan(SubscriptionPlan plan) => _changePlanStub(plan);
+
+  Future<void> _changePlanStub(SubscriptionPlan plan) async {
+    final res =
+        await _api.put('/v1/me/subscription', {'plan': plan.name})
+            as Map<String, dynamic>;
     _subscription = Subscription.fromJson(res);
     if (!isPro && _currentUser?.emailNotifications == true) {
       _currentUser = _currentUser?.copyWith(emailNotifications: false);
@@ -591,12 +707,142 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _refreshSubscriptionAfterPurchase() async {
+    for (var i = 0; i < 5; i++) {
+      await Future<void>.delayed(Duration(milliseconds: 400 * (i + 1)));
+      try {
+        await loadSubscription();
+        if (isPro) return;
+      } catch (_) {}
+    }
+  }
+
   Future<void> setEmailNotifications(bool enabled) async {
-    final res = await _api.put('/v1/me/preferences', {
-      'email_notifications': enabled,
-    }) as Map<String, dynamic>;
+    final res =
+        await _api.put('/v1/me/preferences', {'email_notifications': enabled})
+            as Map<String, dynamic>;
     _currentUser = User.fromJson(res);
     notifyListeners();
+  }
+
+  Future<void> setPushNotifications(bool enabled) async {
+    final res =
+        await _api.put('/v1/me/preferences', {'push_notifications': enabled})
+            as Map<String, dynamic>;
+    _currentUser = User.fromJson(res);
+    notifyListeners();
+    if (enabled) {
+      await _push.registerForSignedInUser();
+    } else {
+      await _push.unregister();
+    }
+  }
+
+  // --- Tester marketplace ---
+
+  List<TesterInvitation> _testerInvites = [];
+  int _pendingTesterInvites = 0;
+
+  List<TesterInvitation> get testerInvites =>
+      List.unmodifiable(_testerInvites);
+  int get pendingTesterInviteCount => _pendingTesterInvites;
+
+  Future<void> updateTesterProfile({
+    bool? openToTest,
+    String? testerBio,
+  }) async {
+    final res =
+        await _api.put('/v1/me/tester-profile', {
+              'open_to_test': ?openToTest,
+              'tester_bio': ?testerBio,
+            })
+            as Map<String, dynamic>;
+    _currentUser = User.fromJson(res);
+    notifyListeners();
+  }
+
+  Future<List<TesterProfile>> loadOpenTesters({
+    String? projectId,
+    String query = '',
+  }) async {
+    final params = <String, String>{
+      if (projectId != null && projectId.isNotEmpty) 'project_id': projectId,
+      if (query.trim().isNotEmpty) 'q': query.trim(),
+    };
+    final qs = params.entries
+        .map((e) => '${Uri.encodeQueryComponent(e.key)}='
+            '${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    final path = qs.isEmpty ? '/v1/testers' : '/v1/testers?$qs';
+    final res = await _api.get(path) as Map<String, dynamic>;
+    final list = (res['testers'] as List?) ?? const [];
+    return list
+        .map((e) => TesterProfile.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<TesterProfile>> loadTopTesters() async {
+    final res = await _api.get('/v1/testers/top') as Map<String, dynamic>;
+    final list = (res['testers'] as List?) ?? const [];
+    return list
+        .map((e) => TesterProfile.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> loadTesterInvites() async {
+    final res =
+        await _api.get('/v1/me/tester-invites') as Map<String, dynamic>;
+    final list = (res['invitations'] as List?) ?? const [];
+    _testerInvites = list
+        .map((e) => TesterInvitation.fromJson(e as Map<String, dynamic>))
+        .toList();
+    _pendingTesterInvites = (res['pending'] as num?)?.toInt() ??
+        _testerInvites.where((i) => i.isPending).length;
+    notifyListeners();
+  }
+
+  Future<TesterInvitation> inviteTester({
+    required String projectId,
+    required String userId,
+    String message = '',
+  }) async {
+    final res =
+        await _api.post('/v1/projects/$projectId/tester-invites', {
+              'user_id': userId,
+              if (message.isNotEmpty) 'message': message,
+            })
+            as Map<String, dynamic>;
+    return TesterInvitation.fromJson(res);
+  }
+
+  Future<TesterInvitation> acceptTesterInvite(String inviteId) async {
+    final res =
+        await _api.post('/v1/me/tester-invites/$inviteId/accept', const {})
+            as Map<String, dynamic>;
+    final inv = TesterInvitation.fromJson(res);
+    await Future.wait([loadTesterInvites(), loadProjects()]);
+    return inv;
+  }
+
+  Future<TesterInvitation> declineTesterInvite(String inviteId) async {
+    final res =
+        await _api.post('/v1/me/tester-invites/$inviteId/decline', const {})
+            as Map<String, dynamic>;
+    final inv = TesterInvitation.fromJson(res);
+    await loadTesterInvites();
+    return inv;
+  }
+
+  Future<void> rateTester({
+    required String projectId,
+    required String testerId,
+    required int score,
+    String comment = '',
+  }) async {
+    await _api.post('/v1/projects/$projectId/testers/$testerId/ratings', {
+      'score': score,
+      if (comment.isNotEmpty) 'comment': comment,
+    });
   }
 
   /// Downloads a CSV export (Pro). [type] is `bugs` or `feedback`.

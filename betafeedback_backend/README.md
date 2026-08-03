@@ -73,8 +73,16 @@ Roles are **per project** (`project_members.role`: `creator`, `tester`,
 `developer`), not global — a user can be a creator on one project and a tester
 on another.
 
-## Not yet implemented (schema is ready)
+## Subscriptions (RevenueCat)
 
-Tables exist for `structured_bugs`, `test_items`, and `subscriptions`; handlers
-for AI bug structuring, the test plan, and billing are the next slices. Future
-roadmap (tester discovery, ranking, compensation) also builds on this schema.
+Pro plan changes are driven by RevenueCat webhooks:
+
+```
+POST /v1/webhooks/revenuecat
+```
+
+Set `REVENUECAT_WEBHOOK_AUTH` (and optionally `REVENUECAT_ENTITLEMENT_ID=pro`)
+in `.env`. See `../betafeedback_mobile/docs/REVENUECAT_SETUP.md`.
+
+`PUT /v1/me/subscription` remains available only when `ENV=development` for
+local plan testing without the App Stores.

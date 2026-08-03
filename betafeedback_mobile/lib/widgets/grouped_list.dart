@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_icons.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
 
-/// iOS-style inset grouped list section.
+/// Inset grouped section: an eyebrow label, a hairline-bordered card of rows,
+/// and an optional explanatory footer.
 class GroupedSection extends StatelessWidget {
   const GroupedSection({
     super.key,
     this.header,
     this.footer,
+    this.headerAction,
     required this.children,
   });
 
   final String? header;
   final String? footer;
+
+  /// Optional control aligned with the eyebrow, e.g. a "See all" button.
+  final Widget? headerAction;
   final List<Widget> children;
 
   @override
@@ -20,42 +27,51 @@ class GroupedSection extends StatelessWidget {
     if (children.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final surface = scheme.brightness == Brightness.dark
-        ? scheme.surfaceContainerHighest
-        : Colors.white;
+    final tones = AppTones.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (header != null)
+        if (header != null || headerAction != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(32, 0, 32, 8),
-            child: Text(
-              header!.toUpperCase(),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.2,
-              ),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter + AppSpace.xs,
+              0,
+              AppSpace.gutter,
+              AppSpace.sm,
+            ),
+            child: Row(
+              children: [
+                if (header != null)
+                  Expanded(
+                    child: Text(
+                      header!.toUpperCase(),
+                      style: theme.textTheme.labelSmall,
+                    ),
+                  )
+                else
+                  const Spacer(),
+                ?headerAction,
+              ],
             ),
           ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: ColoredBox(
-              color: surface,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: tones.hairline,
+                width: AppStroke.hairline,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.md),
               child: Column(
                 children: [
                   for (var i = 0; i < children.length; i++) ...[
-                    if (i > 0)
-                      Divider(
-                        height: 1,
-                        thickness: 0.5,
-                        indent: 56,
-                        color: scheme.outline.withValues(alpha: 0.35),
-                      ),
+                    if (i > 0) Divider(color: tones.hairline),
                     children[i],
                   ],
                 ],
@@ -65,20 +81,21 @@ class GroupedSection extends StatelessWidget {
         ),
         if (footer != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(32, 8, 32, 0),
-            child: Text(
-              footer!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter + AppSpace.xs,
+              AppSpace.sm,
+              AppSpace.gutter + AppSpace.xs,
+              0,
             ),
+            child: Text(footer!, style: theme.textTheme.bodySmall),
           ),
       ],
     );
   }
 }
 
-/// Standard row inside a [GroupedSection].
+/// Standard row inside a [GroupedSection]. The leading glyph sits in a tinted
+/// tile so rows keep a common left edge whether or not they have an icon.
 class GroupedListTile extends StatelessWidget {
   const GroupedListTile({
     super.key,
@@ -103,58 +120,102 @@ class GroupedListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tint = iconColor ?? scheme.primary;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpace.md + 2,
+            vertical: AppSpace.md - 1,
+          ),
           child: Row(
             children: [
               if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 22,
-                  color: iconColor ?? scheme.primary,
-                ),
-                const SizedBox(width: 14),
+                IconTile(icon: icon!, tint: tint),
+                const SizedBox(width: AppSpace.md),
               ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
+                    Text(title, style: theme.textTheme.bodyLarge),
                     if (subtitle != null) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppSpace.xxs),
                       Text(
                         subtitle!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ],
                 ),
               ),
-              if (trailing != null) trailing!,
+              if (trailing != null) ...[
+                const SizedBox(width: AppSpace.sm),
+                trailing!,
+              ],
               if (showChevron && onTap != null) ...[
-                if (trailing != null) const SizedBox(width: 8),
+                const SizedBox(width: AppSpace.sm),
                 Icon(
                   AppIcons.chevronRight,
-                  size: 20,
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  size: 18,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
                 ),
               ],
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Glyph on a tinted rounded tile — the app's standard leading element.
+class IconTile extends StatelessWidget {
+  const IconTile({
+    super.key,
+    required this.icon,
+    required this.tint,
+    this.size = 30,
+  });
+
+  final IconData icon;
+  final Color tint;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(size * 0.3),
+      ),
+      child: Icon(icon, size: size * 0.56, color: tint),
+    );
+  }
+}
+
+/// Plain text row for sections that hold copy rather than navigation.
+class GroupedNote extends StatelessWidget {
+  const GroupedNote(this.message, {super.key});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md + 2,
+        vertical: AppSpace.md,
+      ),
+      child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
     );
   }
 }

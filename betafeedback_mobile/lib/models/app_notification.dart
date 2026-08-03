@@ -1,8 +1,8 @@
 enum NotificationKind { release }
 
 NotificationKind notificationKindFromString(String value) => switch (value) {
-      _ => NotificationKind.release,
-    };
+  _ => NotificationKind.release,
+};
 
 /// An in-app notification delivered to the signed-in user.
 class AppNotification {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"net/http"
@@ -93,9 +94,13 @@ func randomCode() string {
 // --- Handlers ---
 
 func (s *Server) authConfig(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"google_client_id": s.cfg.GoogleClientID,
-	})
+	resp := map[string]any{
+		"google_client_id": s.cfg.GoogleWebClientID(),
+	}
+	if s.cfg.GoogleIOSClientID != "" {
+		resp["google_ios_client_id"] = s.cfg.GoogleIOSClientID
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 type startEmailRequest struct {
@@ -161,7 +166,8 @@ type googleAuthRequest struct {
 }
 
 func (s *Server) authGoogle(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.GoogleClientID == "" {
+	audiences := s.cfg.GoogleAudiences()
+	if len(audiences) == 0 {
 		writeError(w, http.StatusNotImplemented, "google sign-in is not configured")
 		return
 	}
@@ -177,7 +183,7 @@ func (s *Server) authGoogle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload, err := idtoken.Validate(r.Context(), token, s.cfg.GoogleClientID)
+	payload, err := validateGoogleIDToken(r.Context(), token, audiences)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "invalid google token")
 		return
@@ -214,4 +220,19 @@ func (s *Server) authGoogle(w http.ResponseWriter, r *http.Request) {
 func claimString(claims map[string]any, key string) string {
 	v, _ := claims[key].(string)
 	return v
+}
+
+func validateGoogleIDToken(ctx context.Context, token string, audiences []string) (*idtoken.Payload, error) {
+	var lastErr error
+	for _, aud := range audiences {
+		payload, err := idtoken.Validate(ctx, token, aud)
+		if err == nil {
+			return payload, nil
+		}
+		lastErr = err
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, fmt.Errorf("no google audiences configured")
 }

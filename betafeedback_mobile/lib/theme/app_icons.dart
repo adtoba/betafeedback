@@ -40,6 +40,8 @@ abstract final class AppIcons {
   static const rocket = LucideIcons.rocket;
   static const send = LucideIcons.send;
   static const smartphone = LucideIcons.smartphone;
+  static const star = LucideIcons.star;
+  static const search = LucideIcons.search;
   static const sparkles = LucideIcons.sparkles;
   static const sun = LucideIcons.sun;
   static const sunMoon = LucideIcons.sunMoon;

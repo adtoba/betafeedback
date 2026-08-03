@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../app/app_scope.dart';
 import 'project_card.dart';
 
-/// Project avatar — shows the uploaded logo or initials on a tinted background.
+/// Project avatar — shows the uploaded logo, or a solid app-icon mark.
 class ProjectLogo extends StatelessWidget {
   const ProjectLogo({
     super.key,
@@ -22,8 +22,7 @@ class ProjectLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final accent = ProjectCard.accentColor(projectName, scheme);
-    final fallback = _InitialsAvatar(
-      projectName: projectName,
+    final fallback = _ProjectMark(
       size: size,
       borderRadius: borderRadius,
       accent: accent,
@@ -49,43 +48,111 @@ class ProjectLogo extends StatelessWidget {
   }
 }
 
-class _InitialsAvatar extends StatelessWidget {
-  const _InitialsAvatar({
-    required this.projectName,
+/// Solid app-icon tile with a geometric mark — reads as a logo, not a glyph.
+class _ProjectMark extends StatelessWidget {
+  const _ProjectMark({
     required this.size,
     required this.borderRadius,
     required this.accent,
   });
 
-  final String projectName;
   final double size;
   final double borderRadius;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final initials = projectName.trim().isEmpty
-        ? '?'
-        : initialsFor(projectName);
+    final hsl = HSLColor.fromColor(accent);
+    final deep = hsl
+        .withLightness((hsl.lightness * 0.72).clamp(0.18, 0.55))
+        .toColor();
 
     return Container(
       width: size,
       height: size,
-      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(borderRadius),
-      ),
-      child: Text(
-        initials,
-        style: TextStyle(
-          color: accent,
-          fontWeight: FontWeight.w600,
-          fontSize: size * 0.38,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent, deep],
         ),
       ),
+      child: CustomPaint(painter: _MarkPainter(color: Colors.white)),
     );
   }
+}
+
+/// Stacked rounded tiles suggesting an app window / build.
+class _MarkPainter extends CustomPainter {
+  const _MarkPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    final inset = s * 0.24;
+    final shift = s * 0.075;
+    final radius = Radius.circular(s * 0.13);
+    final tile = Size(s - inset * 2, s - inset * 2);
+
+    // Rear tile.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Offset(inset + shift, inset - shift * 0.45) & tile,
+        radius,
+      ),
+      Paint()
+        ..color = color.withValues(alpha: 0.4)
+        ..isAntiAlias = true,
+    );
+
+    // Front tile with cut-out content lines.
+    final frontOrigin = Offset(inset - shift * 0.15, inset + shift);
+    final front = RRect.fromRectAndRadius(frontOrigin & tile, radius);
+    final bounds = front.outerRect.inflate(1);
+
+    canvas.saveLayer(bounds, Paint());
+    canvas.drawRRect(
+      front,
+      Paint()
+        ..color = color
+        ..isAntiAlias = true,
+    );
+
+    final linePaint = Paint()
+      ..blendMode = BlendMode.clear
+      ..isAntiAlias = true;
+    final lineH = front.height * 0.1;
+    final lineLeft = front.left + front.width * 0.18;
+    final lineTop = front.top + front.height * 0.28;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(lineLeft, lineTop, front.width * 0.48, lineH),
+        Radius.circular(lineH),
+      ),
+      linePaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          lineLeft,
+          lineTop + lineH * 2.1,
+          front.width * 0.32,
+          lineH,
+        ),
+        Radius.circular(lineH),
+      ),
+      linePaint,
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MarkPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// App bar title with optional project logo beside the name.
@@ -111,12 +178,7 @@ class ProjectAppBarTitle extends StatelessWidget {
           borderRadius: 7,
         ),
         const SizedBox(width: 10),
-        Flexible(
-          child: Text(
-            projectName,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+        Flexible(child: Text(projectName, overflow: TextOverflow.ellipsis)),
       ],
     );
   }

@@ -12,9 +12,9 @@ class PlatformLink {
   final String url;
 
   factory PlatformLink.fromJson(Map<String, dynamic> json) => PlatformLink(
-        platform: json['platform'] as String? ?? '',
-        url: json['url'] as String? ?? '',
-      );
+    platform: json['platform'] as String? ?? '',
+    url: json['url'] as String? ?? '',
+  );
 
   Map<String, dynamic> toJson() => {'platform': platform, 'url': url};
 }
@@ -77,10 +77,8 @@ class Project {
   /// Most recent feedback or activity-log event (list summaries from the API).
   final DateTime? latestActivityAt;
 
-  List<String> get testerIds => members
-      .where((m) => m.role == UserRole.tester)
-      .map((m) => m.id)
-      .toList();
+  List<String> get testerIds =>
+      members.where((m) => m.role == UserRole.tester).map((m) => m.id).toList();
 
   List<String> get developerIds => members
       .where((m) => m.role == UserRole.developer)
@@ -90,7 +88,8 @@ class Project {
   List<String> get allMemberIds => members.map((m) => m.id).toList();
 
   factory Project.fromJson(Map<String, dynamic> json) {
-    final members = (json['members'] as List?)
+    final members =
+        (json['members'] as List?)
             ?.map((e) => User.fromJson(e as Map<String, dynamic>))
             .toList() ??
         const <User>[];
@@ -108,7 +107,8 @@ class Project {
       inviteLink: inviteLink,
       appLink: json['app_link'] as String?,
       logoUrl: json['logo_url'] as String?,
-      platformLinks: (json['platform_links'] as List?)
+      platformLinks:
+          (json['platform_links'] as List?)
               ?.map((e) => PlatformLink.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const <PlatformLink>[],

@@ -13,16 +13,13 @@ export function HeroSection() {
         />
 
         <div className="hero__center">
-          <div className="hero__icon" aria-hidden="true">
-            β
-          </div>
           <h1>
             feedback in.
             <br />
             <span className="lc grad">clean bugs out.</span>
           </h1>
           <p className="hero__lede">
-            The app that turns what your testers say into developer-ready bug reports — automatically.
+            The app that turns what your testers say into developer-ready bug reports automatically.
           </p>
 
           <StoreBadges variant="light" />

@@ -92,4 +92,5 @@ export type Feedback = {
 
 export type AuthConfig = {
   google_client_id: string;
+  google_ios_client_id?: string;
 };

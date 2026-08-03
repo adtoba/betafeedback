@@ -52,6 +52,13 @@ http.Response _route(http.Request request) {
       });
     case 'GET /v1/notifications':
       result = ok({'notifications': []});
+    case 'GET /v1/me/subscription':
+      result = ok({
+        'plan': 'free',
+        'status': 'active',
+        'project_limit': 1,
+        'projects_used': 1,
+      });
     case 'GET /v1/projects/p1':
       result = ok({
         ...projectSummary,
@@ -88,6 +95,8 @@ http.Response _route(http.Request request) {
       result = ok({'test_items': []});
     case 'GET /v1/projects/p1/activity':
       result = ok({'activity': []});
+    case 'GET /v1/projects/p1/releases':
+      result = ok({'releases': []});
     default:
       return http.Response(jsonEncode({'error': 'not found: $key'}), 404);
   }
@@ -113,14 +122,14 @@ void main() {
     // No stored session -> sign-in screen.
     expect(find.text('BetaFeedback'), findsOneWidget);
 
-    // Reveal email field, enter an address, continue.
-    await tester.tap(find.text('Continue with email'));
-    await tester.pumpAndSettle();
+    // Enter an address and request a code.
     await tester.enterText(
-      find.widgetWithText(TextField, 'name@work-email.com'),
+      find.widgetWithText(TextField, 'you@yourcompany.com'),
       'alex@beta.app',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Email me a sign-in code'),
+    );
     await tester.pumpAndSettle();
 
     // Verification screen, then enter any 6-digit code (backend accepts it).
@@ -138,13 +147,13 @@ void main() {
     await tester.pumpWidget(BetaFeedbackApp(appState: _appStateWithMock()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Continue with email'));
-    await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'name@work-email.com'),
+      find.widgetWithText(TextField, 'you@yourcompany.com'),
       'alex@beta.app',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Email me a sign-in code'),
+    );
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '123456');
     await tester.pumpAndSettle();
@@ -153,6 +162,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bug summary'), findsOneWidget);
+
+    // The report list sits below the project header, so scroll it into view.
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+
     expect(find.text('Cart total resets'), findsOneWidget);
     expect(find.textContaining('iPhone 15 Pro'), findsOneWidget);
   });

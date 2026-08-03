@@ -9,7 +9,55 @@ type User struct {
 	Name               string    `json:"name"`
 	AvatarHue          int       `json:"avatar_hue"`
 	EmailNotifications bool      `json:"email_notifications"`
+	PushNotifications  bool      `json:"push_notifications"`
+	OpenToTest         bool      `json:"open_to_test"`
+	TesterBio          string    `json:"tester_bio"`
+	TesterRatingAvg    float64   `json:"tester_rating_avg"`
+	TesterRatingCount  int       `json:"tester_rating_count"`
 	CreatedAt          time.Time `json:"created_at"`
+}
+
+// TesterProfile is a public discovery card for users who opted into testing.
+type TesterProfile struct {
+	ID             string  `json:"id"`
+	Name           string  `json:"name"`
+	Email          string  `json:"email"`
+	AvatarHue      int     `json:"avatar_hue"`
+	TesterBio      string  `json:"tester_bio"`
+	RatingAvg      float64 `json:"rating_avg"`
+	RatingCount    int     `json:"rating_count"`
+	CompletedCount int     `json:"completed_count"`
+	AlreadyMember  bool    `json:"already_member,omitempty"`
+	InvitePending  bool    `json:"invite_pending,omitempty"`
+}
+
+// TesterInvitation is a request for an opted-in tester to join a project.
+type TesterInvitation struct {
+	ID                 string     `json:"id"`
+	ProjectID          string     `json:"project_id"`
+	ProjectName        string     `json:"project_name"`
+	ProjectDescription string     `json:"project_description"`
+	ProjectLogoURL     *string    `json:"project_logo_url,omitempty"`
+	TesterCount        int        `json:"tester_count"`
+	FromUserID         string     `json:"from_user_id"`
+	FromUserName       string     `json:"from_user_name"`
+	ToUserID           string     `json:"to_user_id"`
+	ToUserName         string     `json:"to_user_name"`
+	Message            string     `json:"message"`
+	Status             string     `json:"status"`
+	CreatedAt          time.Time  `json:"created_at"`
+	RespondedAt        *time.Time `json:"responded_at,omitempty"`
+}
+
+// TesterRating is a creator's score for a tester on a specific project.
+type TesterRating struct {
+	ID        string    `json:"id"`
+	ProjectID string    `json:"project_id"`
+	RaterID   string    `json:"rater_id"`
+	TesterID  string    `json:"tester_id"`
+	Score     int       `json:"score"`
+	Comment   string    `json:"comment"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Project struct {

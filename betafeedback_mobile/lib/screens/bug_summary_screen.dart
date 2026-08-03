@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_icons.dart';
+import '../theme/app_layout.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
 
 import '../app/app_scope.dart';
 import '../data/app_state.dart';
 import '../models/feedback.dart';
 import '../models/release.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/fix_bug_sheet.dart';
+import '../widgets/grouped_list.dart';
+import '../widgets/metric_strip.dart';
+import '../widgets/status_pill.dart';
 import '../widgets/structured_bug_card.dart';
 
 enum _BugFilter { all, suggested, open, needsInfo, fixed }
@@ -62,11 +69,13 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
   List<StructuredBug> _filtered(List<StructuredBug> bugs) {
     final filtered = switch (_filter) {
       _BugFilter.all => bugs,
-      _BugFilter.suggested =>
-        bugs.where((b) => b.status == BugStatus.suggested),
+      _BugFilter.suggested => bugs.where(
+        (b) => b.status == BugStatus.suggested,
+      ),
       _BugFilter.open => bugs.where((b) => b.status == BugStatus.open),
-      _BugFilter.needsInfo =>
-        bugs.where((b) => b.status == BugStatus.needsInfo),
+      _BugFilter.needsInfo => bugs.where(
+        (b) => b.status == BugStatus.needsInfo,
+      ),
       _BugFilter.fixed => bugs.where((b) => b.status == BugStatus.fixed),
     }.toList();
 
@@ -96,16 +105,22 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
           return const Scaffold(body: Center(child: Text('Project not found')));
         }
 
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        final tones = AppTones.of(context);
         final currentUser = appState.currentUser;
-        final canManage = currentUser.id == project.creatorId ||
+        final canManage =
+            currentUser.id == project.creatorId ||
             project.developerIds.contains(currentUser.id);
 
         final bugs = project.structuredBugs;
-        final suggested =
-            bugs.where((b) => b.status == BugStatus.suggested).length;
+        final suggested = bugs
+            .where((b) => b.status == BugStatus.suggested)
+            .length;
         final open = bugs.where((b) => b.status == BugStatus.open).length;
-        final needsInfo =
-            bugs.where((b) => b.status == BugStatus.needsInfo).length;
+        final needsInfo = bugs
+            .where((b) => b.status == BugStatus.needsInfo)
+            .length;
         final fixed = bugs.where((b) => b.status == BugStatus.fixed).length;
         final visible = _filtered(bugs);
 
@@ -130,190 +145,223 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
               ),
             ],
           ),
-          body: bugs.isEmpty
-              ? _EmptyBugs()
-              : ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _StatCard(
-                            value: '$suggested',
-                            label: 'Suggested',
-                            color: Theme.of(context).colorScheme.tertiary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _StatCard(
-                            value: '$open',
-                            label: 'Open',
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _StatCard(
-                            value: '$needsInfo',
-                            label: 'Needs info',
-                            color: Theme.of(context).colorScheme.secondary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _StatCard(
-                            value: '$fixed',
-                            label: 'Fixed',
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ],
+          body: AppLayout.adaptiveBody(
+            context,
+            bugs.isEmpty
+                ? const AppEmptyState(
+                    icon: AppIcons.sparkles,
+                    title: 'No structured bugs yet',
+                    message:
+                        'When testers file reports we draft a structured '
+                        'bug for you to review. Drafts land here.',
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      0,
+                      AppSpace.lg,
+                      0,
+                      AppSpace.xxl,
                     ),
-                    const SizedBox(height: 16),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final entry in [
-                            (_BugFilter.all, 'All'),
-                            (_BugFilter.suggested, 'Suggested'),
-                            (_BugFilter.open, 'Open'),
-                            (_BugFilter.needsInfo, 'Needs info'),
-                            (_BugFilter.fixed, 'Fixed'),
-                          ])
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: FilterChip(
-                                label: Text(entry.$2),
-                                selected: _filter == entry.$1,
-                                onSelected: (_) =>
-                                    setState(() => _filter = entry.$1),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpace.gutter,
+                        ),
+                        child: MetricStrip(
+                          metrics: [
+                            Metric(
+                              label: 'To review',
+                              value: '$suggested',
+                              tint: suggested > 0 ? scheme.secondary : null,
+                            ),
+                            Metric(
+                              label: 'Open',
+                              value: '$open',
+                              tint: open > 0 ? tones.warning : null,
+                            ),
+                            Metric(label: 'Blocked', value: '$needsInfo'),
+                            Metric(label: 'Fixed', value: '$fixed'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.xl),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpace.gutter,
+                        ),
+                        child: Row(
+                          children: [
+                            for (final entry in [
+                              (_BugFilter.all, 'All'),
+                              (_BugFilter.suggested, 'To review'),
+                              (_BugFilter.open, 'Open'),
+                              (_BugFilter.needsInfo, 'Blocked'),
+                              (_BugFilter.fixed, 'Fixed'),
+                            ])
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  right: AppSpace.sm - 2,
+                                ),
+                                child: FilterChip(
+                                  label: Text(entry.$2),
+                                  selected: _filter == entry.$1,
+                                  onSelected: (_) =>
+                                      setState(() => _filter = entry.$1),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpace.gutter,
+                          AppSpace.sm,
+                          AppSpace.sm,
+                          0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            PopupMenuButton<_BugSort>(
+                              initialValue: _sort,
+                              tooltip: 'Sort',
+                              onSelected: (v) => setState(() => _sort = v),
+                              itemBuilder: (context) => const [
+                                PopupMenuItem(
+                                  value: _BugSort.newest,
+                                  child: Text('Newest first'),
+                                ),
+                                PopupMenuItem(
+                                  value: _BugSort.severity,
+                                  child: Text('By severity'),
+                                ),
+                              ],
+                              child: Padding(
+                                padding: const EdgeInsets.all(AppSpace.sm),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      _sort == _BugSort.newest
+                                          ? 'Newest first'
+                                          : 'By severity',
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(color: scheme.primary),
+                                    ),
+                                    const SizedBox(width: AppSpace.xs),
+                                    Icon(
+                                      AppIcons.chevronRight,
+                                      size: 15,
+                                      color: scheme.primary,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: DropdownButton<_BugSort>(
-                        value: _sort,
-                        underline: const SizedBox.shrink(),
-                        items: const [
-                          DropdownMenuItem(
-                            value: _BugSort.newest,
-                            child: Text('Newest first'),
+                      const SizedBox(height: AppSpace.md),
+                      if (visible.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpace.gutter,
+                            vertical: AppSpace.xl,
                           ),
-                          DropdownMenuItem(
-                            value: _BugSort.severity,
-                            child: Text('By severity'),
+                          child: Text(
+                            'Nothing matches this filter.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _sort = v);
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (visible.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
-                        child: Text(
-                          'No bugs match this filter.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                        )
+                      else if (_viewMode == _BugViewMode.cards)
+                        for (final bug in visible)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpace.gutter,
+                              0,
+                              AppSpace.gutter,
+                              AppSpace.md,
+                            ),
+                            child: StructuredBugCard(
+                              bug: bug,
+                              projectId: project.id,
+                              releases: project.releases,
+                              reporterName: bug.reporterName,
+                              canManage: canManage,
+                              onMarkFixed: () {},
+                              onConfirm: () => _confirm(
+                                context,
+                                appState,
+                                project.id,
+                                bug.id,
                               ),
-                        ),
-                      )
-                    else if (_viewMode == _BugViewMode.cards)
-                      for (final bug in visible) ...[
-                        StructuredBugCard(
-                          bug: bug,
-                          projectId: project.id,
-                          releases: project.releases,
-                          reporterName: bug.reporterName,
-                          canManage: canManage,
-                          onMarkFixed: () {},
-                          onConfirm: () => _confirm(
-                            context,
-                            appState,
-                            project.id,
-                            bug.id,
-                          ),
-                          onDismiss: () => _dismiss(
-                            context,
-                            appState,
-                            project.id,
-                            bug.id,
-                          ),
-                          onNeedsInfo: () => _needsInfo(
-                            context,
-                            appState,
-                            project.id,
-                            bug.id,
-                          ),
-                          onResume: () => _resume(
-                            context,
-                            appState,
-                            project.id,
-                            bug.id,
-                          ),
-                          onReopen: () => _reopen(
-                            context,
-                            appState,
-                            project.id,
-                            bug.id,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ]
-                    else
-                      Card(
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
+                              onDismiss: () => _dismiss(
+                                context,
+                                appState,
+                                project.id,
+                                bug.id,
+                              ),
+                              onNeedsInfo: () => _needsInfo(
+                                context,
+                                appState,
+                                project.id,
+                                bug.id,
+                              ),
+                              onResume: () => _resume(
+                                context,
+                                appState,
+                                project.id,
+                                bug.id,
+                              ),
+                              onReopen: () => _reopen(
+                                context,
+                                appState,
+                                project.id,
+                                bug.id,
+                              ),
+                            ),
+                          )
+                      else
+                        GroupedSection(
                           children: [
-                            for (var i = 0; i < visible.length; i++) ...[
-                              if (i > 0) const Divider(height: 1),
+                            for (final bug in visible)
                               _BugChecklistTile(
-                                bug: visible[i],
+                                bug: bug,
                                 canManage: canManage,
                                 onTap: () => _showBugDetail(
                                   context,
                                   appState: appState,
                                   projectId: project.id,
                                   releases: project.releases,
-                                  bug: visible[i],
+                                  bug: bug,
                                   canManage: canManage,
                                 ),
                                 onConfirm: () => _confirm(
                                   context,
                                   appState,
                                   project.id,
-                                  visible[i].id,
+                                  bug.id,
                                 ),
                                 onMarkFixed: () => _openFixSheet(
                                   context,
                                   project.id,
-                                  visible[i].id,
+                                  bug.id,
                                   project.releases,
                                 ),
                                 onReopen: () => _reopen(
                                   context,
                                   appState,
                                   project.id,
-                                  visible[i].id,
+                                  bug.id,
                                 ),
                               ),
-                            ],
                           ],
                         ),
-                      ),
-                  ],
-                ),
+                    ],
+                  ),
+          ),
         );
       },
     );
@@ -328,11 +376,8 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => FixBugSheet(
-        projectId: projectId,
-        bugId: bugId,
-        releases: releases,
-      ),
+      builder: (_) =>
+          FixBugSheet(projectId: projectId, bugId: bugId, releases: releases),
     );
   }
 
@@ -354,7 +399,12 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
         maxChildSize: 0.95,
         builder: (_, scrollController) => SingleChildScrollView(
           controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.gutter,
+            AppSpace.md,
+            AppSpace.gutter,
+            AppSpace.xxl,
+          ),
           child: StructuredBugCard(
             bug: bug,
             projectId: projectId,
@@ -362,36 +412,14 @@ class _BugSummaryScreenState extends State<BugSummaryScreen> {
             reporterName: bug.reporterName,
             canManage: canManage,
             onMarkFixed: () {},
-            onConfirm: () => _confirm(
-              sheetContext,
-              appState,
-              projectId,
-              bug.id,
-            ),
-            onDismiss: () => _dismiss(
-              sheetContext,
-              appState,
-              projectId,
-              bug.id,
-            ),
-            onNeedsInfo: () => _needsInfo(
-              sheetContext,
-              appState,
-              projectId,
-              bug.id,
-            ),
-            onResume: () => _resume(
-              sheetContext,
-              appState,
-              projectId,
-              bug.id,
-            ),
-            onReopen: () => _reopen(
-              sheetContext,
-              appState,
-              projectId,
-              bug.id,
-            ),
+            onConfirm: () =>
+                _confirm(sheetContext, appState, projectId, bug.id),
+            onDismiss: () =>
+                _dismiss(sheetContext, appState, projectId, bug.id),
+            onNeedsInfo: () =>
+                _needsInfo(sheetContext, appState, projectId, bug.id),
+            onResume: () => _resume(sheetContext, appState, projectId, bug.id),
+            onReopen: () => _reopen(sheetContext, appState, projectId, bug.id),
           ),
         ),
       ),
@@ -557,45 +585,52 @@ class _BugChecklistTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tones = AppTones.of(context);
     final isFixed = bug.status == BugStatus.fixed;
 
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.sm,
+          AppSpace.sm,
+          AppSpace.md + 2,
+          AppSpace.sm,
+        ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Checkbox(
               value: _isChecked,
               onChanged: _canToggle ? _onCheckChanged : null,
             ),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, right: 8, bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      bug.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        decoration: isFixed ? TextDecoration.lineThrough : null,
-                        color: isFixed ? scheme.onSurfaceVariant : null,
-                      ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    bug.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      decoration: isFixed ? TextDecoration.lineThrough : null,
+                      decorationColor: scheme.onSurfaceVariant,
+                      color: isFixed ? scheme.onSurfaceVariant : null,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${bug.severity} · ${_statusLabel(bug.status)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: AppSpace.xxs),
+                  Text(bug.severity, style: theme.textTheme.bodySmall),
+                ],
               ),
+            ),
+            const SizedBox(width: AppSpace.sm),
+            StatusPill(
+              label: _statusLabel(bug.status),
+              color: switch (bug.status) {
+                BugStatus.suggested => scheme.secondary,
+                BugStatus.open => tones.warning,
+                BugStatus.needsInfo => scheme.primary,
+                BugStatus.fixed => scheme.tertiary,
+              },
             ),
           ],
         ),
@@ -604,82 +639,9 @@ class _BugChecklistTile extends StatelessWidget {
   }
 
   String _statusLabel(BugStatus status) => switch (status) {
-        BugStatus.suggested => 'Suggested',
-        BugStatus.open => 'Open',
-        BugStatus.needsInfo => 'Needs info',
-        BugStatus.fixed => 'Fixed',
-      };
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  final String value;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyBugs extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(AppIcons.sparkles,
-                size: 56, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
-            Text('No structured bugs yet',
-                style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              'When testers submit feedback, we automatically draft a structured bug for you to review and confirm. Drafts show up here.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    BugStatus.suggested => 'To review',
+    BugStatus.open => 'Open',
+    BugStatus.needsInfo => 'Blocked',
+    BugStatus.fixed => 'Fixed',
+  };
 }

@@ -9,9 +9,16 @@ import (
 	"github.com/adetoba/betafeedback_backend/internal/model"
 )
 
+const userColumns = `id::text, email, name, avatar_hue, email_notifications, push_notifications,
+	open_to_test, tester_bio, created_at`
+
 func scanUser(row pgx.Row) (model.User, error) {
 	var u model.User
-	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.AvatarHue, &u.EmailNotifications, &u.CreatedAt)
+	err := row.Scan(
+		&u.ID, &u.Email, &u.Name, &u.AvatarHue,
+		&u.EmailNotifications, &u.PushNotifications,
+		&u.OpenToTest, &u.TesterBio, &u.CreatedAt,
+	)
 	return u, err
 }
 
@@ -22,42 +29,91 @@ func (s *Store) UpsertUser(ctx context.Context, email, name string, hue int) (mo
 		INSERT INTO users (email, name, avatar_hue)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
-		RETURNING id::text, email, name, avatar_hue, email_notifications, created_at
+		RETURNING `+userColumns+`
 	`, email, name, hue)
-	u, err := scanUser(row)
-	return u, err
+	return scanUser(row)
 }
 
 func (s *Store) GetUser(ctx context.Context, id string) (model.User, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id::text, email, name, avatar_hue, email_notifications, created_at
+		SELECT `+userColumns+`
 		FROM users WHERE id = $1
 	`, id)
 	u, err := scanUser(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.User{}, ErrNotFound
 	}
-	return u, err
+	if err != nil {
+		return model.User{}, err
+	}
+	_ = s.attachTesterStats(ctx, &u)
+	return u, nil
+}
+
+func (s *Store) attachTesterStats(ctx context.Context, u *model.User) error {
+	return s.pool.QueryRow(ctx, `
+		SELECT COALESCE(AVG(score), 0), COUNT(*)::int
+		FROM tester_ratings WHERE tester_id = $1
+	`, u.ID).Scan(&u.TesterRatingAvg, &u.TesterRatingCount)
 }
 
 // SetEmailNotifications toggles Pro email alerts for a user.
 func (s *Store) SetEmailNotifications(ctx context.Context, userID string, enabled bool) (model.User, error) {
 	row := s.pool.QueryRow(ctx, `
 		UPDATE users SET email_notifications = $2 WHERE id = $1
-		RETURNING id::text, email, name, avatar_hue, email_notifications, created_at
+		RETURNING `+userColumns+`
 	`, userID, enabled)
 	u, err := scanUser(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.User{}, ErrNotFound
 	}
-	return u, err
+	if err != nil {
+		return model.User{}, err
+	}
+	_ = s.attachTesterStats(ctx, &u)
+	return u, nil
+}
+
+// SetPushNotifications toggles mobile push alerts for a user.
+func (s *Store) SetPushNotifications(ctx context.Context, userID string, enabled bool) (model.User, error) {
+	row := s.pool.QueryRow(ctx, `
+		UPDATE users SET push_notifications = $2 WHERE id = $1
+		RETURNING `+userColumns+`
+	`, userID, enabled)
+	u, err := scanUser(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.User{}, ErrNotFound
+	}
+	if err != nil {
+		return model.User{}, err
+	}
+	_ = s.attachTesterStats(ctx, &u)
+	return u, nil
+}
+
+// UpdateTesterProfile sets marketplace opt-in and bio for the current user.
+func (s *Store) UpdateTesterProfile(ctx context.Context, userID string, openToTest bool, bio string) (model.User, error) {
+	row := s.pool.QueryRow(ctx, `
+		UPDATE users SET open_to_test = $2, tester_bio = $3 WHERE id = $1
+		RETURNING `+userColumns+`
+	`, userID, openToTest, bio)
+	u, err := scanUser(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.User{}, ErrNotFound
+	}
+	if err != nil {
+		return model.User{}, err
+	}
+	_ = s.attachTesterStats(ctx, &u)
+	return u, nil
 }
 
 // ListProEmailRecipients returns creator/developer members of a project who
 // opted into email notifications on a Pro plan.
 func (s *Store) ListProEmailRecipients(ctx context.Context, projectID string) ([]model.User, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT u.id::text, u.email, u.name, u.avatar_hue, u.email_notifications, u.created_at
+		SELECT u.id::text, u.email, u.name, u.avatar_hue, u.email_notifications, u.push_notifications,
+		       u.open_to_test, u.tester_bio, u.created_at
 		FROM project_members m
 		JOIN users u ON u.id = m.user_id
 		JOIN subscriptions s ON s.user_id = u.id AND s.plan = 'pro'
