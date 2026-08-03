@@ -25,7 +25,7 @@ class AppState extends ChangeNotifier {
     PushNotificationService? push,
     BillingService? billing,
   }) : this._withApi(
-         api ?? ApiClient(baseUrl: 'http://localhost:8080'),
+         api ?? ApiClient(baseUrl: 'https://api.betafeedback.com'),
          googleAuth,
          push,
          billing,

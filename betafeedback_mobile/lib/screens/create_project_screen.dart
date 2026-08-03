@@ -12,7 +12,6 @@ import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/grouped_list.dart';
-import '../widgets/plan_picker_sheet.dart';
 import '../widgets/project_logo.dart';
 import 'find_testers_screen.dart';
 
@@ -87,11 +86,6 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final appState = AppScope.of(context);
-    if (!appState.isPro) {
-      showUpgradeSheet(context, appState, title: 'Pro feature');
-      return;
-    }
     final file = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       maxWidth: 512,
@@ -466,12 +460,12 @@ class _BasicsStep extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpace.xxs),
-                    Text(
-                      'Included with Pro. Otherwise we generate one from the '
-                      'project name.',
-                      style: theme.textTheme.bodySmall,
-                    ),
+                    // const SizedBox(height: AppSpace.xxs),
+                    // Text(
+                    //   'Included with Pro. Otherwise we generate one from the '
+                    //   'project name.',
+                    //   style: theme.textTheme.bodySmall,
+                    // ),
                   ],
                 ),
               ),

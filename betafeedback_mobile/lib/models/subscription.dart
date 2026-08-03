@@ -72,10 +72,10 @@ extension SubscriptionPlanInfo on SubscriptionPlan {
       '1 active project',
       'Unlimited testers & developers',
       'AI bug structuring',
+      'Custom project logo',
     ],
     SubscriptionPlan.pro => const [
       'Unlimited projects',
-      'Custom project logo',
       'Export bugs & feedback (CSV)',
       'Email notifications',
     ],

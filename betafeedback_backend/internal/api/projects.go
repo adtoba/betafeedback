@@ -112,16 +112,6 @@ func (s *Server) updateProject(w http.ResponseWriter, r *http.Request, userID st
 		return
 	}
 
-	pro, err := s.store.UserIsPro(r.Context(), userID)
-	if err != nil {
-		s.serverError(w, "check subscription", err)
-		return
-	}
-	if !pro {
-		writeError(w, http.StatusPaymentRequired, "custom project logos are available on the Pro plan")
-		return
-	}
-
 	var req updateProjectRequest
 	if err := decode(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")

@@ -1,5 +1,6 @@
 /bin/
 .env
+.deploy.env
 *.log
 
 # Uploaded media (local storage)

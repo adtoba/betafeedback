@@ -13,7 +13,7 @@ const faqs = [
   },
   {
     q: "How much does it cost?",
-    a: "BetaFeedback is free to start with one project. Pro ($12/mo) adds unlimited projects, custom logos, CSV export, and email notifications.",
+    a: "BetaFeedback is free to start with one project. Pro ($12/mo) adds unlimited projects, CSV export, and email notifications.",
   },
   {
     q: "When is it available?",
