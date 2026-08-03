@@ -51,13 +51,15 @@ type TesterInvitation struct {
 
 // TesterRating is a creator's score for a tester on a specific project.
 type TesterRating struct {
-	ID        string    `json:"id"`
-	ProjectID string    `json:"project_id"`
-	RaterID   string    `json:"rater_id"`
-	TesterID  string    `json:"tester_id"`
-	Score     int       `json:"score"`
-	Comment   string    `json:"comment"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	ProjectID   string    `json:"project_id"`
+	ProjectName string    `json:"project_name,omitempty"`
+	RaterID     string    `json:"rater_id"`
+	RaterName   string    `json:"rater_name,omitempty"`
+	TesterID    string    `json:"tester_id"`
+	Score       int       `json:"score"`
+	Comment     string    `json:"comment"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Project struct {

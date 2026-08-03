@@ -114,66 +114,109 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               logoUrl: project.logoUrl,
             ),
             actions: [
-              if (canStructureOrFix && appState.isPro)
-                PopupMenuButton<String>(
-                  tooltip: 'Export',
-                  icon: const Icon(AppIcons.download),
-                  onSelected: (type) =>
-                      _exportData(context, appState, project.id, type),
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: 'bugs',
-                      child: Text('Export bugs (CSV)'),
-                    ),
-                    PopupMenuItem(
-                      value: 'feedback',
-                      child: Text('Export feedback (CSV)'),
-                    ),
-                  ],
-                )
-              else if (canStructureOrFix)
-                IconButton(
-                  tooltip: 'Export (Pro)',
-                  onPressed: () => showUpgradeSheet(
-                    context,
-                    appState,
-                    title: 'Export with Pro',
-                  ),
-                  icon: const Icon(AppIcons.download),
-                ),
-              if (canStructureOrFix)
-                IconButton(
-                  tooltip: 'Post release update',
-                  onPressed: () => showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    builder: (_) => PostReleaseSheet(projectId: project.id),
-                  ),
-                  icon: const Icon(AppIcons.rocket),
-                ),
               IconButton(
                 tooltip: 'Team',
                 onPressed: () => _showTeamSheet(context, appState, project),
                 icon: const Icon(AppIcons.people),
               ),
-              if (isCreator)
-                IconButton(
-                  tooltip: 'Find testers',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => FindTestersScreen(
-                        projectId: project.id,
-                        projectName: project.name,
+              if (isCreator || canStructureOrFix)
+                PopupMenuButton<String>(
+                  tooltip: 'More',
+                  icon: const Icon(AppIcons.more),
+                  offset: const Offset(0, 46),
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'invite':
+                        _showInvite(context, project.id);
+                      case 'find_testers':
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => FindTestersScreen(
+                              projectId: project.id,
+                              projectName: project.name,
+                            ),
+                          ),
+                        );
+                      case 'release':
+                        showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) =>
+                              PostReleaseSheet(projectId: project.id),
+                        );
+                      case 'export_bugs':
+                        if (appState.isPro) {
+                          _exportData(context, appState, project.id, 'bugs');
+                        } else {
+                          showUpgradeSheet(
+                            context,
+                            appState,
+                            title: 'Export with Pro',
+                          );
+                        }
+                      case 'export_feedback':
+                        if (appState.isPro) {
+                          _exportData(
+                            context,
+                            appState,
+                            project.id,
+                            'feedback',
+                          );
+                        } else {
+                          showUpgradeSheet(
+                            context,
+                            appState,
+                            title: 'Export with Pro',
+                          );
+                        }
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    if (isCreator) ...[
+                      const PopupMenuItem(
+                        value: 'invite',
+                        child: _MenuRow(
+                          icon: AppIcons.personAdd,
+                          label: 'Invite member',
+                        ),
                       ),
-                    ),
-                  ),
-                  icon: const Icon(AppIcons.search),
-                ),
-              if (isCreator)
-                IconButton(
-                  tooltip: 'Invite member',
-                  onPressed: () => _showInvite(context, project.id),
-                  icon: const Icon(AppIcons.personAdd),
+                      const PopupMenuItem(
+                        value: 'find_testers',
+                        child: _MenuRow(
+                          icon: AppIcons.search,
+                          label: 'Find testers',
+                        ),
+                      ),
+                    ],
+                    if (canStructureOrFix) ...[
+                      if (isCreator) const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'release',
+                        child: _MenuRow(
+                          icon: AppIcons.rocket,
+                          label: 'Post release',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'export_bugs',
+                        child: _MenuRow(
+                          icon: AppIcons.download,
+                          label: appState.isPro
+                              ? 'Export bugs (CSV)'
+                              : 'Export bugs (Pro)',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'export_feedback',
+                        child: _MenuRow(
+                          icon: AppIcons.download,
+                          label: appState.isPro
+                              ? 'Export feedback (CSV)'
+                              : 'Export feedback (Pro)',
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
             ],
           ),
@@ -348,11 +391,26 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                   AppSpace.gutter + AppSpace.xs,
                   0,
                   AppSpace.gutter,
-                  AppSpace.xl,
+                  AppSpace.md,
                 ),
-                child: Text(
-                  'Team',
-                  style: Theme.of(context).textTheme.headlineSmall,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Team',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                    ),
+                    if (isCreator)
+                      IconButton(
+                        tooltip: 'Invite member',
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          _showInvite(context, project.id);
+                        },
+                        icon: const Icon(AppIcons.personAdd),
+                      ),
+                  ],
                 ),
               ),
               if (creator != null) ...[
@@ -364,50 +422,49 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               ],
               GroupedSection(
                 header: 'Testers · ${testers.length}',
-                children: testers.isEmpty
-                    ? [
-                        GroupedNote(
-                          isCreator
-                              ? 'No testers yet. Find people open to testing.'
-                              : 'No testers have joined yet.',
-                        ),
-                        if (isCreator)
-                          GroupedListTile(
-                            icon: AppIcons.search,
-                            title: 'Find testers',
-                            subtitle: 'Invite from the marketplace',
-                            onTap: () {
-                              Navigator.of(sheetContext).pop();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => FindTestersScreen(
+                children: [
+                  if (testers.isEmpty)
+                    GroupedNote(
+                      isCreator
+                          ? 'No testers yet. Find people open to testing.'
+                          : 'No testers have joined yet.',
+                    )
+                  else
+                    for (final u in testers)
+                      TeamMemberTile(
+                        user: u,
+                        trailing: isCreator
+                            ? TextButton(
+                                onPressed: () {
+                                  Navigator.of(sheetContext).pop();
+                                  showRateTesterSheet(
+                                    context,
                                     projectId: project.id,
-                                    projectName: project.name,
-                                  ),
-                                ),
-                              );
-                            },
+                                    tester: u,
+                                  );
+                                },
+                                child: const Text('Rate'),
+                              )
+                            : null,
+                      ),
+                  if (isCreator)
+                    GroupedListTile(
+                      icon: AppIcons.search,
+                      title: 'Find testers',
+                      subtitle: 'Invite from the marketplace',
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => FindTestersScreen(
+                              projectId: project.id,
+                              projectName: project.name,
+                            ),
                           ),
-                      ]
-                    : [
-                        for (final u in testers)
-                          TeamMemberTile(
-                            user: u,
-                            trailing: isCreator
-                                ? TextButton(
-                                    onPressed: () {
-                                      Navigator.of(sheetContext).pop();
-                                      showRateTesterSheet(
-                                        context,
-                                        projectId: project.id,
-                                        tester: u,
-                                      );
-                                    },
-                                    child: const Text('Rate'),
-                                  )
-                                : null,
-                          ),
-                      ],
+                        );
+                      },
+                    ),
+                ],
               ),
               const SizedBox(height: AppSpace.xxl),
               GroupedSection(
@@ -629,6 +686,25 @@ class _CompactLinkRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: AppSpace.md),
+        Text(label),
+      ],
     );
   }
 }

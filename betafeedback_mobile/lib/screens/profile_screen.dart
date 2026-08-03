@@ -13,6 +13,7 @@ import '../widgets/plan_picker_sheet.dart';
 import '../models/subscription.dart';
 import '../models/user.dart';
 import 'tester_invites_screen.dart';
+import 'tester_ratings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -297,20 +298,7 @@ class _TesterMarketplacePanel extends StatefulWidget {
 }
 
 class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
-  late final TextEditingController _bio;
   bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _bio = TextEditingController(text: widget.appState.currentUser.testerBio);
-  }
-
-  @override
-  void dispose() {
-    _bio.dispose();
-    super.dispose();
-  }
 
   Future<void> _setOpen(bool value) async {
     setState(() => _saving = true);
@@ -327,13 +315,20 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
     }
   }
 
-  Future<void> _saveBio() async {
-    final bio = _bio.text.trim();
-    if (bio == widget.appState.currentUser.testerBio) return;
+  Future<void> _editBio() async {
+    final current = widget.appState.currentUser.testerBio;
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => _BioEditorSheet(initialBio: current),
+    );
+    if (result == null || !mounted) return;
+    if (result == current) return;
+
     setState(() => _saving = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await widget.appState.updateTesterProfile(testerBio: bio);
+      await widget.appState.updateTesterProfile(testerBio: result);
       if (!mounted) return;
       messenger.showSnackBar(
         const SnackBar(
@@ -354,85 +349,120 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final tones = AppTones.of(context);
     final user = widget.appState.currentUser;
+    final bio = user.testerBio.trim();
+
+    return GroupedSection(
+      header: 'Testing',
+      footer: user.openToTest
+          ? 'You appear when creators look for testers.'
+          : 'Turn on to get invited to test apps.',
+      children: [
+        GroupedListTile(
+          icon: AppIcons.search,
+          title: 'Open to test',
+          showChevron: false,
+          trailing: _saving
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Switch.adaptive(
+                  value: user.openToTest,
+                  onChanged: _setOpen,
+                ),
+        ),
+        GroupedListTile(
+          icon: AppIcons.star,
+          title: 'Your ratings',
+          subtitle: user.testerRatingLabel,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const TesterRatingsScreen()),
+          ),
+        ),
+        if (user.openToTest)
+          GroupedListTile(
+            icon: AppIcons.person,
+            title: 'Tester bio',
+            subtitle: bio.isEmpty
+                ? 'Add devices, platforms, or focus areas'
+                : bio,
+            onTap: _saving ? null : _editBio,
+            trailing: _saving
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                : null,
+          ),
+      ],
+    );
+  }
+}
+
+class _BioEditorSheet extends StatefulWidget {
+  const _BioEditorSheet({required this.initialBio});
+
+  final String initialBio;
+
+  @override
+  State<_BioEditorSheet> createState() => _BioEditorSheetState();
+}
+
+class _BioEditorSheetState extends State<_BioEditorSheet> {
+  late final TextEditingController _bio;
+
+  @override
+  void initState() {
+    super.initState();
+    _bio = TextEditingController(text: widget.initialBio);
+  }
+
+  @override
+  void dispose() {
+    _bio.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpace.lg),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: tones.hairline, width: AppStroke.hairline),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Open to test apps',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ),
-                if (_saving)
-                  const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  Switch.adaptive(
-                    value: user.openToTest,
-                    onChanged: _setOpen,
-                  ),
-              ],
+      padding: EdgeInsets.fromLTRB(
+        AppSpace.gutter,
+        AppSpace.lg,
+        AppSpace.gutter,
+        AppSpace.lg + bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Tester bio', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: AppSpace.md),
+          TextField(
+            controller: _bio,
+            autofocus: true,
+            maxLength: 280,
+            maxLines: 4,
+            minLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Devices you use, what you like to test…',
+              alignLabelWithHint: true,
             ),
-            Text(
-              'Show up when creators look for testers. Accept invitations '
-              'from your Testing invitations inbox.',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: AppSpace.md),
-            Row(
-              children: [
-                Icon(AppIcons.star, size: 16, color: scheme.primary),
-                const SizedBox(width: AppSpace.xs),
-                Text(
-                  user.testerRatingLabel,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: scheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            if (user.openToTest) ...[
-              const SizedBox(height: AppSpace.lg),
-              TextField(
-                controller: _bio,
-                maxLength: 280,
-                maxLines: 3,
-                minLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Tester bio',
-                  hintText: 'Devices you use, what you like to test…',
-                  alignLabelWithHint: true,
-                ),
-                onEditingComplete: _saveBio,
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _saving ? null : _saveBio,
-                  child: const Text('Save bio'),
-                ),
-              ),
-            ],
-          ],
-        ),
+          ),
+          const SizedBox(height: AppSpace.md),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(_bio.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

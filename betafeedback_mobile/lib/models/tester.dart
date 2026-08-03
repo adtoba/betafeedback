@@ -135,3 +135,39 @@ class TesterInvitation {
             : DateTime.parse(json['responded_at'] as String),
       );
 }
+
+class TesterRating {
+  const TesterRating({
+    required this.id,
+    required this.projectId,
+    this.projectName = '',
+    required this.raterId,
+    this.raterName = '',
+    required this.testerId,
+    required this.score,
+    this.comment = '',
+    required this.createdAt,
+  });
+
+  final String id;
+  final String projectId;
+  final String projectName;
+  final String raterId;
+  final String raterName;
+  final String testerId;
+  final int score;
+  final String comment;
+  final DateTime createdAt;
+
+  factory TesterRating.fromJson(Map<String, dynamic> json) => TesterRating(
+    id: json['id'] as String,
+    projectId: json['project_id'] as String,
+    projectName: json['project_name'] as String? ?? '',
+    raterId: json['rater_id'] as String,
+    raterName: json['rater_name'] as String? ?? '',
+    testerId: json['tester_id'] as String,
+    score: (json['score'] as num).toInt(),
+    comment: json['comment'] as String? ?? '',
+    createdAt: DateTime.parse(json['created_at'] as String),
+  );
+}

@@ -351,6 +351,38 @@ func (s *Store) RateTester(ctx context.Context, projectID, raterID, testerID str
 	return r, nil
 }
 
+// ListTesterRatingsForUser returns ratings a user has received as a tester,
+// newest first, with project and rater names for display.
+func (s *Store) ListTesterRatingsForUser(ctx context.Context, testerID string) ([]model.TesterRating, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT r.id::text, r.project_id::text, p.name, r.rater_id::text,
+		       COALESCE(NULLIF(u.name, ''), u.email) AS rater_name,
+		       r.tester_id::text, r.score, r.comment, r.created_at
+		FROM tester_ratings r
+		JOIN projects p ON p.id = r.project_id
+		JOIN users u ON u.id = r.rater_id
+		WHERE r.tester_id = $1
+		ORDER BY r.created_at DESC
+	`, testerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []model.TesterRating
+	for rows.Next() {
+		var r model.TesterRating
+		if err := rows.Scan(
+			&r.ID, &r.ProjectID, &r.ProjectName, &r.RaterID, &r.RaterName,
+			&r.TesterID, &r.Score, &r.Comment, &r.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // CountPendingTesterInvitations returns how many pending invites a user has.
 func (s *Store) CountPendingTesterInvitations(ctx context.Context, userID string) (int, error) {
 	var n int

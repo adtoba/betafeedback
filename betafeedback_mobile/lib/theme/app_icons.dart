@@ -33,6 +33,7 @@ abstract final class AppIcons {
   static const mailOpen = LucideIcons.mailOpen;
   static const megaphone = LucideIcons.megaphone;
   static const moon = LucideIcons.moon;
+  static const more = LucideIcons.moreVertical;
   static const people = LucideIcons.users;
   static const person = LucideIcons.user;
   static const personAdd = LucideIcons.userPlus;

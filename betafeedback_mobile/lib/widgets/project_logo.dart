@@ -169,7 +169,6 @@ class ProjectAppBarTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         ProjectLogo(
           projectName: projectName,
@@ -178,7 +177,13 @@ class ProjectAppBarTitle extends StatelessWidget {
           borderRadius: 7,
         ),
         const SizedBox(width: 10),
-        Flexible(child: Text(projectName, overflow: TextOverflow.ellipsis)),
+        Expanded(
+          child: Text(
+            projectName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }

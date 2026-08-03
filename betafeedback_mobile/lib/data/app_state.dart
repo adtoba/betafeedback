@@ -845,6 +845,15 @@ class AppState extends ChangeNotifier {
     });
   }
 
+  Future<List<TesterRating>> loadMyTesterRatings() async {
+    final res =
+        await _api.get('/v1/me/tester-ratings') as Map<String, dynamic>;
+    final list = (res['ratings'] as List?) ?? const [];
+    return list
+        .map((e) => TesterRating.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Downloads a CSV export (Pro). [type] is `bugs` or `feedback`.
   Future<String> exportProject({
     required String projectId,

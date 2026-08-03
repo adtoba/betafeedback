@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/adetoba/betafeedback_backend/internal/model"
 	"github.com/adetoba/betafeedback_backend/internal/store"
 )
 
@@ -262,4 +263,16 @@ func (s *Server) rateTester(w http.ResponseWriter, r *http.Request, userID strin
 		return
 	}
 	writeJSON(w, http.StatusOK, rating)
+}
+
+func (s *Server) listMyTesterRatings(w http.ResponseWriter, r *http.Request, userID string) {
+	ratings, err := s.store.ListTesterRatingsForUser(r.Context(), userID)
+	if err != nil {
+		s.serverError(w, "list tester ratings", err)
+		return
+	}
+	if ratings == nil {
+		ratings = []model.TesterRating{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ratings": ratings})
 }

@@ -303,14 +303,14 @@ class _NewFeedbackScreenState extends State<NewFeedbackScreen> {
                           ),
                       ],
                     ),
-                    if (_platformAutoSelected) ...[
-                      const SizedBox(height: AppSpace.sm),
-                      Text(
-                        'Pre-selected from your device — change it if you\'re '
-                        'testing somewhere else.',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
+                    // if (_platformAutoSelected) ...[
+                    //   const SizedBox(height: AppSpace.sm),
+                    //   Text(
+                    //     'Pre-selected from your device — change it if you\'re '
+                    //     'testing somewhere else.',
+                    //     style: theme.textTheme.bodySmall,
+                    //   ),
+                    // ],
                   ],
                   const SizedBox(height: AppSpace.xl),
                   const _FieldLabel('Screenshots & recordings'),
@@ -400,14 +400,7 @@ class _AutoContext extends StatelessWidget {
               value: platformLabel!,
               muted: false,
             ),
-          ],
-          const SizedBox(height: AppSpace.md - 2),
-          Text(
-            'Developers use this to reproduce the issue on the right build.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
+          ]          
         ],
       ),
     );

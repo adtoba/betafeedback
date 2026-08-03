@@ -72,6 +72,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/me/tester-invites", s.requireAuth(s.listMyTesterInvites))
 	mux.HandleFunc("POST /v1/me/tester-invites/{inviteId}/accept", s.requireAuth(s.acceptTesterInvite))
 	mux.HandleFunc("POST /v1/me/tester-invites/{inviteId}/decline", s.requireAuth(s.declineTesterInvite))
+	mux.HandleFunc("GET /v1/me/tester-ratings", s.requireAuth(s.listMyTesterRatings))
 	mux.HandleFunc("POST /v1/devices", s.requireAuth(s.registerDevice))
 	mux.HandleFunc("DELETE /v1/devices", s.requireAuth(s.unregisterDevice))
 
