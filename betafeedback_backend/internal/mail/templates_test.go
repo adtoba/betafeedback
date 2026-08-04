@@ -11,7 +11,8 @@ func TestOTPHTMLIncludesCode(t *testing.T) {
 		"BetaFeedback",
 		"123456",
 		"Your sign-in code",
-		"Sign in",
+		"color-scheme",
+		"prefers-color-scheme: dark",
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("OTP HTML missing %q", want)

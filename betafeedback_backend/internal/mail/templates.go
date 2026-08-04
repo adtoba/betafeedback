@@ -6,25 +6,11 @@ import (
 	"strings"
 )
 
-// brand colors aligned with the marketing site (signal blue on navy).
-const (
-	colorBg      = "#070b14"
-	colorSurface = "#121826"
-	colorInk     = "#eef1f7"
-	colorMuted   = "#a8b0c2"
-	colorLine    = "rgba(238,241,247,0.12)"
-	colorSignal  = "#2f8fff"
-	colorSignal2 = "#1a6fd4"
-	colorEmber   = "#e8943a"
-	colorCodeBg  = "#0c1220"
-)
-
-// Message is a branded transactional email.
+// Message is a plain transactional email that adapts to light/dark mode.
 type Message struct {
 	To        string
 	Subject   string
 	Preheader string
-	Eyebrow   string
 	Title     string
 	Intro     string
 	// Highlight is an optional large monospace callout (e.g. OTP code).
@@ -35,7 +21,7 @@ type Message struct {
 	Footer    string
 }
 
-// Section is a labeled block inside the email card.
+// Section is a labeled block inside the email.
 type Section struct {
 	Label string
 	Body  string
@@ -79,54 +65,43 @@ func (m Message) Text() string {
 }
 
 func (m Message) HTML() string {
-	var sections strings.Builder
+	var body strings.Builder
+
+	if m.Title != "" {
+		fmt.Fprintf(&body,
+			`<h1 class="t" style="margin:0 0 16px;font-size:20px;line-height:1.3;font-weight:600;color:#111111">%s</h1>`,
+			html.EscapeString(m.Title),
+		)
+	}
+	if m.Intro != "" {
+		fmt.Fprintf(&body,
+			`<p class="b" style="margin:0 0 20px;font-size:15px;line-height:1.5;color:#333333">%s</p>`,
+			nl2br(html.EscapeString(m.Intro)),
+		)
+	}
+	if m.Highlight != "" {
+		fmt.Fprintf(&body,
+			`<p class="t" style="margin:0 0 24px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:28px;letter-spacing:0.2em;font-weight:600;color:#111111">%s</p>`,
+			html.EscapeString(m.Highlight),
+		)
+	}
 	for _, s := range m.Sections {
-		label := ""
 		if s.Label != "" {
-			label = fmt.Sprintf(
-				`<div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:%s;margin:0 0 8px">%s</div>`,
-				colorEmber, html.EscapeString(s.Label),
+			fmt.Fprintf(&body,
+				`<p class="m" style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#666666">%s</p>`,
+				html.EscapeString(s.Label),
 			)
 		}
-		sections.WriteString(fmt.Sprintf(
-			`<tr><td style="padding:0 0 20px">%s<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:%s;white-space:pre-wrap">%s</div></td></tr>`,
-			label, colorInk, nl2br(html.EscapeString(s.Body)),
-		))
+		fmt.Fprintf(&body,
+			`<p class="t" style="margin:0 0 16px;font-size:15px;line-height:1.5;color:#111111;white-space:pre-wrap">%s</p>`,
+			nl2br(html.EscapeString(s.Body)),
+		)
 	}
-
-	cta := ""
 	if m.CTAURL != "" && m.CTALabel != "" {
-		cta = fmt.Sprintf(`
-<tr><td style="padding:8px 0 28px">
-  <a href="%s" style="display:inline-block;background:linear-gradient(105deg,%s 0%%,%s 100%%);color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;text-decoration:none;padding:14px 22px;border-radius:12px">%s</a>
-</td></tr>`, html.EscapeString(m.CTAURL), colorSignal2, colorSignal, html.EscapeString(m.CTALabel))
-	}
-
-	eyebrow := ""
-	if m.Eyebrow != "" {
-		eyebrow = fmt.Sprintf(
-			`<div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:%s;margin:0 0 12px">%s</div>`,
-			colorEmber, html.EscapeString(m.Eyebrow),
+		fmt.Fprintf(&body,
+			`<p style="margin:8px 0 20px"><a class="a" href="%s" style="color:#1a6fd4;font-size:15px">%s</a></p>`,
+			html.EscapeString(m.CTAURL), html.EscapeString(m.CTALabel),
 		)
-	}
-
-	intro := ""
-	if m.Intro != "" {
-		intro = fmt.Sprintf(
-			`<p style="margin:0 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:%s">%s</p>`,
-			colorMuted, nl2br(html.EscapeString(m.Intro)),
-		)
-	}
-
-	highlight := ""
-	if m.Highlight != "" {
-		highlight = fmt.Sprintf(`
-<tr><td style="padding:0 0 24px">
-  <div style="background:%s;border:1px solid %s;border-radius:14px;padding:22px 16px;text-align:center">
-    <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:%s;margin:0 0 10px">Code</div>
-    <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:36px;letter-spacing:0.28em;font-weight:700;color:%s;line-height:1">%s</div>
-  </div>
-</td></tr>`, colorCodeBg, colorLine, colorEmber, colorInk, html.EscapeString(m.Highlight))
 	}
 
 	footer := "You're receiving this because of your BetaFeedback notification settings."
@@ -134,65 +109,39 @@ func (m Message) HTML() string {
 		footer = m.Footer
 	}
 
-	preheader := html.EscapeString(m.Preheader)
-	title := html.EscapeString(m.Title)
-
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark">
-<meta name="supported-color-schemes" content="dark">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
 <title>%s</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { background:#ffffff; color:#111111; }
+  @media (prefers-color-scheme: dark) {
+    body { background:#111111 !important; color:#f2f2f2 !important; }
+    .wrap { background:#111111 !important; }
+    .t { color:#f2f2f2 !important; }
+    .b { color:#d0d0d0 !important; }
+    .m { color:#a0a0a0 !important; }
+    .a { color:#6eb3ff !important; }
+  }
+</style>
 </head>
-<body style="margin:0;padding:0;background:%s">
+<body style="margin:0;padding:0;background:#ffffff;color:#111111">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">%s</div>
-  <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0" style="background:%s;padding:32px 16px">
-    <tr><td align="center">
-      <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px">
-        <tr><td style="padding:0 0 20px">
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-            <tr>
-              <td style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,%s 0%%,%s 100%%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:700;text-align:center;vertical-align:middle;line-height:32px">B</td>
-              <td style="padding-left:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:650;letter-spacing:-0.02em;color:%s">BetaFeedback</td>
-            </tr>
-          </table>
-        </td></tr>
-        <tr><td style="background:%s;border:1px solid %s;border-radius:18px;padding:28px 28px 8px">
-          <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="padding:0 0 8px">
-              %s
-              <h1 style="margin:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:24px;line-height:1.2;letter-spacing:-0.03em;font-weight:700;color:%s">%s</h1>
-              %s
-            </td></tr>
-            %s
-            %s
-            %s
-          </table>
-        </td></tr>
-        <tr><td style="padding:22px 8px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:%s">
-          %s
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
+  <div class="wrap" style="margin:0 auto;padding:28px 20px;max-width:560px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#ffffff;color:#111111">
+    <p class="m" style="margin:0 0 24px;font-size:13px;color:#666666">BetaFeedback</p>
+    %s
+    <p class="m" style="margin:28px 0 0;font-size:12px;line-height:1.5;color:#666666">%s</p>
+  </div>
 </body>
 </html>`,
-		title,
-		colorBg,
-		preheader,
-		colorBg,
-		colorSignal2, colorSignal,
-		colorInk,
-		colorSurface, colorLine,
-		eyebrow,
-		colorInk, title,
-		intro,
-		highlight,
-		sections.String(),
-		cta,
-		colorMuted,
+		html.EscapeString(firstNonEmpty(m.Title, m.Subject)),
+		html.EscapeString(m.Preheader),
+		body.String(),
 		html.EscapeString(footer),
 	)
 }
@@ -201,12 +150,20 @@ func nl2br(s string) string {
 	return strings.ReplaceAll(s, "\n", "<br>\n")
 }
 
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 // OTP builds the sign-in code email.
 func OTP(code string) Message {
 	return Message{
 		Subject:   "Your BetaFeedback sign-in code",
 		Preheader: fmt.Sprintf("Your code is %s — expires in 10 minutes.", code),
-		Eyebrow:   "Sign in",
 		Title:     "Your sign-in code",
 		Intro:     "Use this code to finish signing in to BetaFeedback. It expires in 10 minutes.",
 		Highlight: code,
@@ -219,8 +176,7 @@ func NewFeedback(projectName, authorName, feedbackTitle, feedbackBody, projectUR
 	return Message{
 		Subject:   fmt.Sprintf("New feedback in %s", projectName),
 		Preheader: fmt.Sprintf("%s shared feedback in %s", authorName, projectName),
-		Eyebrow:   "Feedback",
-		Title:     "New feedback arrived",
+		Title:     "New feedback",
 		Intro:     fmt.Sprintf("%s left feedback on %s.", authorName, projectName),
 		Sections: []Section{
 			{Label: "Title", Body: feedbackTitle},
@@ -236,9 +192,8 @@ func SuggestedBug(projectName, bugTitle, projectURL string) Message {
 	return Message{
 		Subject:   fmt.Sprintf("Bug to review in %s", projectName),
 		Preheader: bugTitle,
-		Eyebrow:   "AI draft",
-		Title:     "A bug is ready to review",
-		Intro:     fmt.Sprintf("BetaFeedback drafted a structured bug for %s. Confirm or dismiss it in the app.", projectName),
+		Title:     "Bug ready to review",
+		Intro:     fmt.Sprintf("A structured bug draft is ready for %s. Confirm or dismiss it in the app.", projectName),
 		Sections: []Section{
 			{Label: "Suggested title", Body: bugTitle},
 		},
@@ -256,8 +211,7 @@ func Release(projectName, version, notes, projectURL string) Message {
 	return Message{
 		Subject:   fmt.Sprintf("%s shipped %s", projectName, version),
 		Preheader: fmt.Sprintf("New release %s in %s", version, projectName),
-		Eyebrow:   "Release",
-		Title:     "New release posted",
+		Title:     "New release",
 		Intro:     fmt.Sprintf("%s just shipped %s.", projectName, version),
 		Sections:  sections,
 		CTALabel:  "View release",
