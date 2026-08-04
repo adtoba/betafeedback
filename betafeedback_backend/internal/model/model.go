@@ -32,7 +32,7 @@ type TesterProfile struct {
 	InvitePending  bool    `json:"invite_pending,omitempty"`
 }
 
-// TesterInvitation is a request for an opted-in tester to join a project.
+// TesterInvitation is a request for someone to join a project as tester or developer.
 type TesterInvitation struct {
 	ID                 string     `json:"id"`
 	ProjectID          string     `json:"project_id"`
@@ -45,6 +45,7 @@ type TesterInvitation struct {
 	ToUserID           string     `json:"to_user_id"`
 	ToUserName         string     `json:"to_user_name"`
 	Message            string     `json:"message"`
+	Role               string     `json:"role"`
 	Status             string     `json:"status"`
 	CreatedAt          time.Time  `json:"created_at"`
 	RespondedAt        *time.Time `json:"responded_at,omitempty"`
@@ -132,9 +133,11 @@ type PlatformLink struct {
 // InviteInfo is the public, unauthenticated summary shown on the /join page for
 // an invite code.
 type InviteInfo struct {
+	ProjectID   string `json:"project_id"`
 	ProjectName string `json:"project_name"`
 	CreatorName string `json:"creator_name"`
 	TesterCount int    `json:"tester_count"`
+	InviteCode  string `json:"invite_code"`
 }
 
 type Member struct {

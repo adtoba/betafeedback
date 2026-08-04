@@ -11,12 +11,13 @@ type ViewState = "loading" | "found" | "error";
 
 export default function JoinPage() {
   const params = useParams<{ code: string }>();
-  const code = decodeURIComponent(params.code ?? "");
+  const rawCode = typeof params.code === "string" ? params.code : "";
+  const code = decodeURIComponent(rawCode).replace(/\/+$/, "").trim();
 
   const [state, setState] = useState<ViewState>("loading");
   const [invite, setInvite] = useState<InviteInfo | null>(null);
   const [errorMsg, setErrorMsg] = useState(
-    "The link may have expired or been mistyped. Ask whoever invited you for a fresh link.",
+    "We couldn't find a project for this link. Double-check it with whoever shared it.",
   );
   const [copied, setCopied] = useState(false);
 
@@ -42,7 +43,9 @@ export default function JoinPage() {
       .catch((err: Error) => {
         if (cancelled) return;
         if (err.message !== "not_found") {
-          setErrorMsg("Something went wrong loading this invite. Please try again shortly.");
+          setErrorMsg(
+            "Something went wrong loading this invite. Please try again shortly.",
+          );
         }
         setState("error");
       });
@@ -109,11 +112,14 @@ export default function JoinPage() {
               </li>
               <li>
                 <span className="n">2</span>
-                <span>Sign in with your email.</span>
+                <span>Sign in with the email you’ll use for testing.</span>
               </li>
               <li>
                 <span className="n">3</span>
-                <span>Enter the invite code above to join the project.</span>
+                <span>
+                  Tap <b>Open in BetaFeedback</b> below — the app joins you
+                  automatically. Or enter the invite code in Invitations.
+                </span>
               </li>
             </ol>
 
@@ -121,13 +127,23 @@ export default function JoinPage() {
               <a
                 className="btn btn--primary btn--lg"
                 href={`betafeedback://join/${encodeURIComponent(code)}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  const path = `join/${encodeURIComponent(code)}`;
+                  if (/Android/i.test(navigator.userAgent)) {
+                    window.location.href =
+                      `intent://${path}#Intent;scheme=betafeedback;package=com.betafeedback.app;end`;
+                  } else {
+                    window.location.href = `betafeedback://${path}`;
+                  }
+                }}
               >
                 Open in BetaFeedback
               </a>
             </div>
             <p className="join-foot">
               Don&apos;t have the app? Request early access below — then sign in
-              and enter the invite code.
+              and open this link again.
             </p>
             <div style={{ marginTop: 16 }}>
               <a

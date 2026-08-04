@@ -358,10 +358,11 @@ class _TesterInvitesButton extends StatelessWidget {
     final pending = appState.pendingTesterInviteCount;
     final scheme = Theme.of(context).colorScheme;
     final open = appState.currentUser.openToTest;
+    final hasInvites = appState.testerInvites.isNotEmpty;
 
-    // Only surface the inbox when the user is open to testing or already has
-    // invitations waiting.
-    if (!open && pending == 0) return const SizedBox.shrink();
+    // Surface the inbox when the user is open to testing or already has
+    // invitations (including stale-count recovery once invites are loaded).
+    if (!open && pending == 0 && !hasInvites) return const SizedBox.shrink();
 
     return HeaderIconButton(
       tooltip: 'Testing invitations',

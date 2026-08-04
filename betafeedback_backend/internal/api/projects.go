@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -173,10 +174,21 @@ func (s *Server) addMember(w http.ResponseWriter, r *http.Request, userID string
 		return
 	}
 
-	member, err := s.store.AddMember(r.Context(), id, name, email, req.Role, avatarHue(email))
+	inv, err := s.store.CreateMemberInvitation(
+		r.Context(), id, userID, name, email, req.Role, avatarHue(email),
+	)
 	if err != nil {
-		s.serverError(w, "add member", err)
+		if errors.Is(err, store.ErrConflict) {
+			writeError(w, http.StatusConflict, conflictMessage(err))
+			return
+		}
+		s.serverError(w, "invite member", err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, member)
+
+	s.pushToUsers(r.Context(), []string{inv.ToUserID}, id, "member_invite",
+		"Project invitation", inv.ProjectName+" invited you to join as a "+inv.Role)
+	s.emailMemberInvite(r.Context(), inv)
+
+	writeJSON(w, http.StatusCreated, inv)
 }

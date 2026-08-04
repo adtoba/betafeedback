@@ -15,15 +15,17 @@ export const metadata: Metadata = {
 export default async function OpenProjectPage({ params }: PageProps) {
   const { id } = await params;
   const projectId = decodeURIComponent(id ?? "").trim();
-  const appUrl = projectId
-    ? `betafeedback://projects/${encodeURIComponent(projectId)}`
-    : "betafeedback://";
+  const appPath = projectId ? `projects/${projectId}` : "";
+  const httpsUrl = projectId
+    ? `https://betafeedback.com/open/projects/${encodeURIComponent(projectId)}`
+    : "https://betafeedback.com";
 
   return (
     <OpenInApp
       title="Continue in the app"
       subtitle="This link opens your project in BetaFeedback. If nothing happens, install the app and try again."
-      appUrl={appUrl}
+      appPath={appPath}
+      httpsUrl={httpsUrl}
       note={
         projectId
           ? "Already installed? Tap Open in BetaFeedback above."

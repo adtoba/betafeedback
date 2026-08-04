@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -170,16 +171,18 @@ func (s *Store) UpdateProjectLogo(ctx context.Context, id string, logoURL *strin
 }
 
 // InviteInfo returns the public summary for an invite code, or ErrNotFound if
-// no project has that code.
+// no project has that code. Matching is case-insensitive.
 func (s *Store) InviteInfo(ctx context.Context, code string) (model.InviteInfo, error) {
+	code = strings.TrimSpace(strings.TrimSuffix(code, "/"))
 	var info model.InviteInfo
 	err := s.pool.QueryRow(ctx, `
-		SELECT p.name, cu.name,
-		       (SELECT count(*) FROM project_members t WHERE t.project_id = p.id AND t.role = 'tester')
+		SELECT p.id::text, p.name, cu.name,
+		       (SELECT count(*) FROM project_members t WHERE t.project_id = p.id AND t.role = 'tester'),
+		       p.invite_code
 		FROM projects p
 		JOIN users cu ON cu.id = p.creator_id
-		WHERE p.invite_code = $1
-	`, code).Scan(&info.ProjectName, &info.CreatorName, &info.TesterCount)
+		WHERE lower(p.invite_code) = lower($1)
+	`, code).Scan(&info.ProjectID, &info.ProjectName, &info.CreatorName, &info.TesterCount, &info.InviteCode)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.InviteInfo{}, ErrNotFound
 	}
@@ -187,6 +190,41 @@ func (s *Store) InviteInfo(ctx context.Context, code string) (model.InviteInfo, 
 		return model.InviteInfo{}, err
 	}
 	return info, nil
+}
+
+// JoinByInviteCode adds the authenticated user as a tester on the project that
+// owns the invite code. Idempotent if already a member.
+func (s *Store) JoinByInviteCode(ctx context.Context, code, userID string) (model.Project, error) {
+	code = strings.TrimSpace(strings.TrimSuffix(code, "/"))
+	var projectID string
+	err := s.pool.QueryRow(ctx, `
+		SELECT id::text FROM projects WHERE lower(invite_code) = lower($1)
+	`, code).Scan(&projectID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.Project{}, ErrNotFound
+	}
+	if err != nil {
+		return model.Project{}, err
+	}
+
+	var already bool
+	if err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+		)
+	`, projectID, userID).Scan(&already); err != nil {
+		return model.Project{}, err
+	}
+	if !already {
+		if _, err := s.pool.Exec(ctx, `
+			INSERT INTO project_members (project_id, user_id, role)
+			VALUES ($1, $2, 'tester')
+		`, projectID, userID); err != nil {
+			return model.Project{}, err
+		}
+	}
+
+	return s.GetProject(ctx, projectID)
 }
 
 // MemberRole returns the user's role within a project, or ErrNotFound if they

@@ -51,4 +51,39 @@ void main() {
       );
     });
   });
+
+  group('DeepLinkService.parseJoinCode', () {
+    test('parses https join links', () {
+      expect(
+        DeepLinkService.parseJoinCode(
+          Uri.parse('https://betafeedback.com/join/shopflow-ab12'),
+        ),
+        'shopflow-ab12',
+      );
+    });
+
+    test('parses custom scheme join links', () {
+      expect(
+        DeepLinkService.parseJoinCode(
+          Uri.parse('betafeedback://join/shopflow-ab12'),
+        ),
+        'shopflow-ab12',
+      );
+      expect(
+        DeepLinkService.parseJoinCode(
+          Uri.parse('betafeedback:///join/shopflow-ab12'),
+        ),
+        'shopflow-ab12',
+      );
+    });
+
+    test('ignores project open links', () {
+      expect(
+        DeepLinkService.parseJoinCode(
+          Uri.parse('https://betafeedback.com/open/projects/abc'),
+        ),
+        isNull,
+      );
+    });
+  });
 }

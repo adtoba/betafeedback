@@ -111,3 +111,39 @@ func (s *Server) pushRelease(ctx context.Context, projectID, posterID, projectNa
 	}
 	s.pushToProjectMembers(ctx, projectID, posterID, "release", title, body)
 }
+
+func (s *Server) emailTesterInvite(ctx context.Context, toUserID string, inv model.TesterInvitation) {
+	user, err := s.store.GetUser(ctx, toUserID)
+	if err != nil {
+		s.logger.Error("load invitee for email", "err", err)
+		return
+	}
+	fromName := inv.FromUserName
+	if fromName == "" {
+		fromName = "A creator"
+	}
+	openURL := s.mailer.AppBaseURL()
+	msg := mail.TesterInvite(inv.ProjectName, fromName, inv.Message, openURL)
+	msg.To = user.Email
+	if err := s.mailer.SendMessage(ctx, msg); err != nil {
+		s.logger.Error("send tester invite email", "err", err, "to", user.Email)
+	}
+}
+
+func (s *Server) emailMemberInvite(ctx context.Context, inv model.TesterInvitation) {
+	user, err := s.store.GetUser(ctx, inv.ToUserID)
+	if err != nil {
+		s.logger.Error("load invitee for email", "err", err)
+		return
+	}
+	fromName := inv.FromUserName
+	if fromName == "" {
+		fromName = "A creator"
+	}
+	openURL := s.mailer.AppBaseURL()
+	msg := mail.MemberInvite(inv.ProjectName, fromName, inv.Role, openURL)
+	msg.To = user.Email
+	if err := s.mailer.SendMessage(ctx, msg); err != nil {
+		s.logger.Error("send member invite email", "err", err, "to", user.Email)
+	}
+}

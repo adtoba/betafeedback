@@ -300,25 +300,11 @@ class _FindTestersScreenState extends State<FindTestersScreen>
                   const SizedBox(height: AppSpace.lg),
                   Text(
                     onSwaps
-                        ? (AppScope.of(context).isPro
-                              ? 'Propose a swap with creators who also need testers. '
-                                    'You join theirs, they join yours.'
-                              : 'Test-for-test swaps are on Pro. Browse partners here, '
-                                    'then upgrade to propose a swap.')
+                        ? 'Propose a swap with creators who also need testers. '
+                              'You join theirs, they join yours.'
                         : 'Invite people who are open to testing apps on BetaFeedback.',
                     style: theme.textTheme.bodySmall,
                   ),
-                  if (onSwaps && !AppScope.of(context).isPro) ...[
-                    const SizedBox(height: AppSpace.md),
-                    FilledButton(
-                      onPressed: () => showUpgradeSheet(
-                        context,
-                        AppScope.of(context),
-                        title: 'Test-for-test is on Pro',
-                      ),
-                      child: const Text('Upgrade to Pro'),
-                    ),
-                  ],
                   const SizedBox(height: AppSpace.lg),
                   TextField(
                     controller: _search,

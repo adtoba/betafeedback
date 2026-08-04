@@ -166,6 +166,7 @@ func (s *Server) createTesterInvite(w http.ResponseWriter, r *http.Request, user
 
 	s.pushToUsers(r.Context(), []string{toUserID}, projectID, "tester_invite",
 		"Tester invitation", inv.ProjectName+" wants you to test their app")
+	s.emailTesterInvite(r.Context(), toUserID, inv)
 
 	writeJSON(w, http.StatusCreated, inv)
 }

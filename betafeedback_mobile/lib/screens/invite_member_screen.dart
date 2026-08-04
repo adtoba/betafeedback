@@ -49,7 +49,7 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
       navigator.pop();
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Invite sent to $email'),
+          content: Text('Invite sent to $email — they can accept in the app'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -252,7 +252,7 @@ class _InviteLinkCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpace.sm + 2),
           Text(
-            'Anyone with the link joins as a tester.',
+            'Anyone with the link can join as a tester after signing in.',
             style: theme.textTheme.bodySmall,
           ),
         ],

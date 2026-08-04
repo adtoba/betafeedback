@@ -178,6 +178,86 @@ func (s *Store) CreateTesterInvitation(ctx context.Context, projectID, fromUserI
 	return s.GetTesterInvitation(ctx, id)
 }
 
+// CreateMemberInvitation invites someone by email as tester or developer.
+// Creates the user row if needed. Does not require open_to_test. Membership
+// is only granted when the invitee accepts.
+func (s *Store) CreateMemberInvitation(ctx context.Context, projectID, fromUserID, name, email, role string, hue int) (model.TesterInvitation, error) {
+	if role != "tester" && role != "developer" {
+		return model.TesterInvitation{}, fmt.Errorf("%w: role must be tester or developer", ErrConflict)
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	name = strings.TrimSpace(name)
+	if email == "" || name == "" {
+		return model.TesterInvitation{}, fmt.Errorf("%w: name and email are required", ErrConflict)
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return model.TesterInvitation{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var toUserID string
+	err = tx.QueryRow(ctx, `
+		INSERT INTO users (email, name, avatar_hue)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (email) DO UPDATE
+		SET name = CASE
+			WHEN users.name = '' OR users.name = users.email THEN EXCLUDED.name
+			ELSE users.name
+		END
+		RETURNING id::text
+	`, email, name, hue).Scan(&toUserID)
+	if err != nil {
+		return model.TesterInvitation{}, err
+	}
+
+	if toUserID == fromUserID {
+		return model.TesterInvitation{}, fmt.Errorf("%w: cannot invite yourself", ErrConflict)
+	}
+
+	var already bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+		)
+	`, projectID, toUserID).Scan(&already); err != nil {
+		return model.TesterInvitation{}, err
+	}
+	if already {
+		return model.TesterInvitation{}, fmt.Errorf("%w: user is already a member", ErrConflict)
+	}
+
+	var id string
+	err = tx.QueryRow(ctx, `
+		INSERT INTO tester_invitations (project_id, from_user_id, to_user_id, message, role)
+		VALUES ($1, $2, $3, '', $4)
+		RETURNING id::text
+	`, projectID, fromUserID, toUserID, role).Scan(&id)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return model.TesterInvitation{}, fmt.Errorf("%w: invitation already pending", ErrConflict)
+		}
+		return model.TesterInvitation{}, err
+	}
+
+	projectName, _ := s.ProjectName(ctx, projectID)
+	roleLabel := role
+	title := "Project invitation"
+	body := fmt.Sprintf("You've been invited to join %s as a %s", projectName, roleLabel)
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO notifications (recipient_id, project_id, kind, title, body)
+		VALUES ($1, $2, 'member_invite', $3, $4)
+	`, toUserID, projectID, title, body); err != nil {
+		return model.TesterInvitation{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return model.TesterInvitation{}, err
+	}
+	return s.GetTesterInvitation(ctx, id)
+}
+
 const testerInvitationSelect = `
 		SELECT
 			i.id::text, i.project_id::text, p.name, p.description, p.logo_url,
@@ -185,7 +265,7 @@ const testerInvitationSelect = `
 			 WHERE pm.project_id = p.id AND pm.role = 'tester') AS tester_count,
 			i.from_user_id::text, f.name,
 			i.to_user_id::text, tu.name,
-			i.message, i.status, i.created_at, i.responded_at
+			i.message, i.role, i.status, i.created_at, i.responded_at
 		FROM tester_invitations i
 		JOIN projects p ON p.id = i.project_id
 		JOIN users f ON f.id = i.from_user_id
@@ -210,7 +290,7 @@ func scanTesterInvitation(row pgx.Row) (model.TesterInvitation, error) {
 		&inv.TesterCount,
 		&inv.FromUserID, &inv.FromUserName,
 		&inv.ToUserID, &inv.ToUserName,
-		&inv.Message, &inv.Status, &inv.CreatedAt, &inv.RespondedAt,
+		&inv.Message, &inv.Role, &inv.Status, &inv.CreatedAt, &inv.RespondedAt,
 	)
 	return inv, err
 }
@@ -262,7 +342,7 @@ func (s *Store) ListProjectTesterInvitations(ctx context.Context, projectID stri
 }
 
 // RespondTesterInvitation accepts or declines a pending invitation.
-// On accept, the invitee is added as a tester member.
+// On accept, the invitee is added with the invited role.
 func (s *Store) RespondTesterInvitation(ctx context.Context, inviteID, userID, status string) (model.TesterInvitation, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -270,12 +350,12 @@ func (s *Store) RespondTesterInvitation(ctx context.Context, inviteID, userID, s
 	}
 	defer tx.Rollback(ctx)
 
-	var projectID, toUserID, current string
+	var projectID, toUserID, current, role string
 	err = tx.QueryRow(ctx, `
-		SELECT project_id::text, to_user_id::text, status
+		SELECT project_id::text, to_user_id::text, status, role
 		FROM tester_invitations WHERE id = $1
 		FOR UPDATE
-	`, inviteID).Scan(&projectID, &toUserID, &current)
+	`, inviteID).Scan(&projectID, &toUserID, &current, &role)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.TesterInvitation{}, ErrNotFound
 	}
@@ -287,6 +367,9 @@ func (s *Store) RespondTesterInvitation(ctx context.Context, inviteID, userID, s
 	}
 	if current != "pending" {
 		return model.TesterInvitation{}, fmt.Errorf("%w: invitation is no longer pending", ErrConflict)
+	}
+	if role != "tester" && role != "developer" {
+		role = "tester"
 	}
 
 	tag, err := tx.Exec(ctx, `
@@ -304,9 +387,9 @@ func (s *Store) RespondTesterInvitation(ctx context.Context, inviteID, userID, s
 	if status == "accepted" {
 		if _, err = tx.Exec(ctx, `
 			INSERT INTO project_members (project_id, user_id, role)
-			VALUES ($1, $2, 'tester')
+			VALUES ($1, $2, $3)
 			ON CONFLICT (project_id, user_id) DO UPDATE SET role = EXCLUDED.role
-		`, projectID, userID); err != nil {
+		`, projectID, userID, role); err != nil {
 			return model.TesterInvitation{}, err
 		}
 	}

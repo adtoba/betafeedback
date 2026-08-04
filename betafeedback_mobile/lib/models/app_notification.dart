@@ -1,7 +1,21 @@
-enum NotificationKind { release }
+enum NotificationKind {
+  release,
+  testerInvite,
+  memberInvite,
+  swapInvite,
+  feedback,
+  bug,
+  other,
+}
 
 NotificationKind notificationKindFromString(String value) => switch (value) {
-  _ => NotificationKind.release,
+  'tester_invite' => NotificationKind.testerInvite,
+  'member_invite' => NotificationKind.memberInvite,
+  'swap_invite' => NotificationKind.swapInvite,
+  'feedback' => NotificationKind.feedback,
+  'bug' => NotificationKind.bug,
+  'release' => NotificationKind.release,
+  _ => NotificationKind.other,
 };
 
 /// An in-app notification delivered to the signed-in user.

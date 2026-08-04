@@ -145,6 +145,54 @@ class _TesterInvitesScreenState extends State<TesterInvitesScreen> {
     }
   }
 
+  Future<void> _enterInviteCode() async {
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter invite code'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            hintText: 'project-abcd',
+          ),
+          onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Join'),
+          ),
+        ],
+      ),
+    );
+    if (code == null || code.isEmpty || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final project = await AppScope.of(context).joinWithInviteCode(code);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Joined ${project.name}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _openProject(project.id);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = AppScope.of(context);
@@ -155,7 +203,15 @@ class _TesterInvitesScreenState extends State<TesterInvitesScreen> {
         final invites = appState.testerInvites;
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Testing invitations')),
+          appBar: AppBar(
+            title: const Text('Invitations'),
+            actions: [
+              TextButton(
+                onPressed: () => _enterInviteCode(),
+                child: const Text('Enter code'),
+              ),
+            ],
+          ),
           body: AppLayout.adaptiveBody(
             context,
             _loading
@@ -168,12 +224,17 @@ class _TesterInvitesScreenState extends State<TesterInvitesScreen> {
                     onRetry: _refresh,
                   )
                 : invites.isEmpty
-                ? const AppEmptyState(
+                ? AppEmptyState(
                     icon: AppIcons.mailOpen,
                     title: 'No invitations yet',
                     message:
-                        'When creators invite you to test their apps, '
-                        'those requests land here.',
+                        'When someone invites you to a project, '
+                        'those requests land here. You can also join '
+                        'with a shared invite code.',
+                    action: TextButton(
+                      onPressed: _enterInviteCode,
+                      child: const Text('Enter invite code'),
+                    ),
                   )
                 : RefreshIndicator(
                     onRefresh: _refresh,
@@ -219,9 +280,6 @@ class _InviteRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final testers =
-        '${invite.testerCount} '
-        '${invite.testerCount == 1 ? "tester" : "testers"}';
 
     return Material(
       color: theme.cardColor,
@@ -252,7 +310,7 @@ class _InviteRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'From ${invite.fromUserName} · $testers',
+                      'From ${invite.fromUserName} · ${invite.roleLabel}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,
@@ -348,7 +406,7 @@ class _InviteProjectSheet extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpace.xs),
                         Text(
-                          'Invited by ${invite.fromUserName}',
+                          'Invited by ${invite.fromUserName} as ${invite.roleLabel}',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),

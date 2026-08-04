@@ -9,6 +9,8 @@ import '../widgets/grouped_list.dart';
 import '../app/app_scope.dart';
 import '../models/app_notification.dart';
 import 'project_detail_screen.dart';
+import 'test_swaps_screen.dart';
+import 'tester_invites_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -24,9 +26,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // Refresh, then mark everything read once the user opens this screen.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final appState = AppScope.of(context);
-      await appState.loadNotifications();
+      await Future.wait([
+        appState.loadNotifications(),
+        appState.loadTesterInvites(),
+        appState.loadSwaps(),
+      ]);
       await appState.markNotificationsRead();
     });
+  }
+
+  void _openNotification(AppNotification notification) {
+    final Widget screen = switch (notification.kind) {
+      NotificationKind.testerInvite ||
+      NotificationKind.memberInvite =>
+        const TesterInvitesScreen(),
+      NotificationKind.swapInvite => const TestSwapsScreen(),
+      _ => ProjectDetailScreen(projectId: notification.projectId),
+    };
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
   @override
@@ -62,13 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         const SizedBox(height: AppSpace.sm),
                     itemBuilder: (context, index) => _NotificationTile(
                       notification: items[index],
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ProjectDetailScreen(
-                            projectId: items[index].projectId,
-                          ),
-                        ),
-                      ),
+                      onTap: () => _openNotification(items[index]),
                     ),
                   ),
           ),
@@ -90,6 +101,13 @@ class _NotificationTile extends StatelessWidget {
     final scheme = theme.colorScheme;
     final tint = switch (notification.kind) {
       NotificationKind.release => scheme.tertiary,
+      NotificationKind.testerInvite ||
+      NotificationKind.memberInvite =>
+        scheme.primary,
+      NotificationKind.swapInvite => scheme.primary,
+      NotificationKind.feedback => scheme.secondary,
+      NotificationKind.bug => scheme.error,
+      NotificationKind.other => scheme.onSurfaceVariant,
     };
 
     return Card(
@@ -143,5 +161,12 @@ class _NotificationTile extends StatelessWidget {
 
   IconData _iconFor(NotificationKind kind) => switch (kind) {
     NotificationKind.release => AppIcons.rocket,
+    NotificationKind.testerInvite ||
+    NotificationKind.memberInvite =>
+      AppIcons.mailOpen,
+    NotificationKind.swapInvite => AppIcons.repeat,
+    NotificationKind.feedback => AppIcons.feedback,
+    NotificationKind.bug => AppIcons.bug,
+    NotificationKind.other => AppIcons.bell,
   };
 }

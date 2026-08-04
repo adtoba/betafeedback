@@ -81,20 +81,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _AppearanceRow(appState: appState),
                     _PushRow(appState: appState),
                     _EmailRow(appState: appState),
-                    if (appState.currentUser.openToTest ||
-                        appState.pendingTesterInviteCount > 0)
-                      GroupedListTile(
-                        icon: AppIcons.mailOpen,
-                        title: 'Testing invitations',
+                    GroupedListTile(
+                      icon: AppIcons.mailOpen,
+                        title: 'Invitations',
                         subtitle: appState.pendingTesterInviteCount > 0
                             ? '${appState.pendingTesterInviteCount} pending'
-                            : 'View invites to test apps',
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const TesterInvitesScreen(),
-                          ),
+                            : 'View invites to join projects',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const TesterInvitesScreen(),
                         ),
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: AppSpace.xxl),
@@ -402,9 +400,7 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
         GroupedListTile(
           icon: AppIcons.repeat,
           title: 'Open to test-for-test',
-          subtitle: widget.appState.isPro
-              ? 'Swap testing with other creators'
-              : 'Pro — swap testing with other creators',
+          subtitle: 'Swap testing with other creators',
           showChevron: false,
           trailing: _saving
               ? const SizedBox(

@@ -218,3 +218,48 @@ func Release(projectName, version, notes, projectURL string) Message {
 		CTAURL:    projectURL,
 	}
 }
+
+// TesterInvite builds an email when a creator invites someone to test their app.
+func TesterInvite(projectName, fromName, message, openURL string) Message {
+	sections := []Section{}
+	if strings.TrimSpace(message) != "" {
+		sections = append(sections, Section{Label: "Message", Body: message})
+	}
+	return Message{
+		Subject:   fmt.Sprintf("%s invited you to test %s", fromName, projectName),
+		Preheader: fmt.Sprintf("Open BetaFeedback to accept or decline testing %s.", projectName),
+		Title:     "Tester invitation",
+		Intro: fmt.Sprintf(
+			"%s invited you to test %s on BetaFeedback. Open the app to accept or decline.",
+			fromName,
+			projectName,
+		),
+		Sections: sections,
+		CTALabel: "Open BetaFeedback",
+		CTAURL:   openURL,
+		Footer:   "You're receiving this because someone invited you to test their app on BetaFeedback.",
+	}
+}
+
+// MemberInvite builds an email when a creator invites someone by email as
+// tester or developer.
+func MemberInvite(projectName, fromName, role, openURL string) Message {
+	roleLabel := role
+	if roleLabel != "developer" {
+		roleLabel = "tester"
+	}
+	return Message{
+		Subject:   fmt.Sprintf("%s invited you to join %s", fromName, projectName),
+		Preheader: fmt.Sprintf("You've been invited as a %s — accept or decline in BetaFeedback.", roleLabel),
+		Title:     "You're invited",
+		Intro: fmt.Sprintf(
+			"%s invited you to join %s as a %s. Open BetaFeedback to accept or decline.",
+			fromName,
+			projectName,
+			roleLabel,
+		),
+		CTALabel: "Open BetaFeedback",
+		CTAURL:   openURL,
+		Footer:   "You're receiving this because someone invited you to a project on BetaFeedback.",
+	}
+}

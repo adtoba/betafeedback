@@ -135,12 +135,21 @@ class AppState extends ChangeNotifier {
 
     await Future.wait([_push.init(), _billing.init()]);
     if (_signedIn) {
-      _push.onForegroundMessage = loadNotifications;
+      _push.onForegroundMessage = _refreshInboxFromPush;
       await Future.wait([
         _push.registerForSignedInUser(),
         _billing.identify(currentUser.id),
       ]);
     }
+  }
+
+  /// Keep notifications, invites, and swaps in sync when a push arrives.
+  Future<void> _refreshInboxFromPush() async {
+    await Future.wait([
+      loadNotifications(),
+      loadTesterInvites(),
+      loadSwaps(),
+    ]);
   }
 
   // --- Auth ---
@@ -183,7 +192,7 @@ class AppState extends ChangeNotifier {
       loadTesterInvites(),
       loadSwaps(),
     ]);
-    _push.onForegroundMessage = loadNotifications;
+    _push.onForegroundMessage = _refreshInboxFromPush;
     await Future.wait([
       _push.registerForSignedInUser(),
       _billing.identify(currentUser.id),
@@ -459,7 +468,18 @@ class AppState extends ChangeNotifier {
       'email': email,
       'role': userRoleToString(role),
     });
-    await loadProject(projectId);
+    // Membership is pending until the invitee accepts — no project reload needed.
+  }
+
+  /// Redeems a shareable invite code and returns the joined project.
+  Future<Project> joinWithInviteCode(String code) async {
+    final trimmed = code.trim();
+    final res =
+        await _api.post('/v1/invites/${Uri.encodeComponent(trimmed)}/join',
+            const {}) as Map<String, dynamic>;
+    final project = Project.fromJson(res);
+    await loadProjects();
+    return project;
   }
 
   Future<void> sendFeedback({

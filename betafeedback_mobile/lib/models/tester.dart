@@ -93,6 +93,7 @@ class TesterInvitation {
     required this.toUserId,
     required this.toUserName,
     this.message = '',
+    this.role = 'tester',
     this.status = TesterInviteStatus.pending,
     required this.createdAt,
     this.respondedAt,
@@ -109,11 +110,14 @@ class TesterInvitation {
   final String toUserId;
   final String toUserName;
   final String message;
+  final String role;
   final TesterInviteStatus status;
   final DateTime createdAt;
   final DateTime? respondedAt;
 
   bool get isPending => status == TesterInviteStatus.pending;
+
+  String get roleLabel => role == 'developer' ? 'Developer' : 'Tester';
 
   factory TesterInvitation.fromJson(Map<String, dynamic> json) =>
       TesterInvitation(
@@ -128,6 +132,7 @@ class TesterInvitation {
         toUserId: json['to_user_id'] as String,
         toUserName: json['to_user_name'] as String? ?? '',
         message: json['message'] as String? ?? '',
+        role: json['role'] as String? ?? 'tester',
         status: testerInviteStatusFromString(json['status'] as String?),
         createdAt: DateTime.parse(json['created_at'] as String),
         respondedAt: json['responded_at'] == null

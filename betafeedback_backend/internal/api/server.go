@@ -127,6 +127,7 @@ func (s *Server) Routes() http.Handler {
 
 	// Public invite summary, consumed by the marketing site's /join page.
 	mux.HandleFunc("GET /v1/invites/{code}", s.getInvite)
+	mux.HandleFunc("POST /v1/invites/{code}/join", s.requireAuth(s.joinInvite))
 
 	// Uploaded feedback attachments (served from MediaDir).
 	mux.Handle("GET /media/", s.mediaFileServer())

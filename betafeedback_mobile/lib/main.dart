@@ -21,6 +21,10 @@ Future<void> main() async {
   final appState = AppState();
   appState.pushService.navigatorKey = _navigatorKey;
   _deepLinks.navigatorKey = _navigatorKey;
+  _deepLinks.joinWithCode = (code) async {
+    final project = await appState.joinWithInviteCode(code);
+    return project.id;
+  };
   await _deepLinks.start();
   runApp(BetaFeedbackApp(appState: appState, deepLinks: _deepLinks));
 }
