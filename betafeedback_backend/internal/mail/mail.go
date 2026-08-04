@@ -4,63 +4,80 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/smtp"
 	"strings"
+
+	"github.com/resend/resend-go/v3"
 )
 
-// Config configures outbound email. When [Enabled] is false, sends are logged
-// instead of delivered (same pattern as OTP in development).
+// Config configures outbound email via Resend. When [Enabled] is false, sends
+// are logged instead of delivered (handy for local development).
 type Config struct {
-	Host     string
-	Port     string
-	Username string
-	Password string
-	From     string
+	APIKey string
+	From   string
 }
 
 type Sender struct {
 	cfg    Config
+	client *resend.Client
 	logger *slog.Logger
 }
 
 func NewSender(cfg Config, logger *slog.Logger) *Sender {
-	return &Sender{cfg: cfg, logger: logger}
+	s := &Sender{cfg: cfg, logger: logger}
+	if cfg.Enabled() {
+		s.client = resend.NewClient(strings.TrimSpace(cfg.APIKey))
+	}
+	return s
 }
 
 func (c Config) Enabled() bool {
-	return strings.TrimSpace(c.Host) != "" && strings.TrimSpace(c.From) != ""
+	return strings.TrimSpace(c.APIKey) != "" && strings.TrimSpace(c.From) != ""
 }
 
-// Send delivers a plain-text email. No-op (with a log line) when SMTP is unset.
-func (s *Sender) Send(_ context.Context, to, subject, body string) error {
+// Send delivers a plain-text email (with a matching HTML body). No-op (with a
+// log line) when Resend is unset.
+func (s *Sender) Send(ctx context.Context, to, subject, body string) error {
 	to = strings.TrimSpace(to)
 	if to == "" {
 		return nil
 	}
-	if !s.cfg.Enabled() {
-		s.logger.Info("email (smtp not configured)",
+	if !s.cfg.Enabled() || s.client == nil {
+		s.logger.Info("email (resend not configured)",
 			"to", to, "subject", subject, "body", body)
 		return nil
 	}
 
-	msg := strings.Join([]string{
-		"From: " + s.cfg.From,
-		"To: " + to,
-		"Subject: " + subject,
-		"MIME-Version: 1.0",
-		"Content-Type: text/plain; charset=UTF-8",
-		"",
-		body,
-	}, "\r\n")
-
-	addr := fmt.Sprintf("%s:%s", s.cfg.Host, defaultPort(s.cfg.Port))
-	auth := smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
-	return smtp.SendMail(addr, auth, s.cfg.From, []string{to}, []byte(msg))
+	params := &resend.SendEmailRequest{
+		From:    s.cfg.From,
+		To:      []string{to},
+		Subject: subject,
+		Text:    body,
+		Html:    textToHTML(body),
+	}
+	_, err := s.client.Emails.SendWithContext(ctx, params)
+	if err != nil {
+		return fmt.Errorf("resend: %w", err)
+	}
+	return nil
 }
 
-func defaultPort(port string) string {
-	if strings.TrimSpace(port) == "" {
-		return "587"
-	}
-	return port
+// SendOTP emails a sign-in verification code.
+func (s *Sender) SendOTP(ctx context.Context, to, code string) error {
+	subject := "Your BetaFeedback sign-in code"
+	body := fmt.Sprintf(
+		"Your BetaFeedback sign-in code is %s.\n\n"+
+			"It expires in 10 minutes. If you didn't request this, you can ignore this email.\n",
+		code,
+	)
+	return s.Send(ctx, to, subject, body)
+}
+
+func textToHTML(body string) string {
+	escaped := strings.ReplaceAll(body, "&", "&amp;")
+	escaped = strings.ReplaceAll(escaped, "<", "&lt;")
+	escaped = strings.ReplaceAll(escaped, ">", "&gt;")
+	escaped = strings.ReplaceAll(escaped, "\n", "<br>\n")
+	return "<p style=\"font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#111\">" +
+		escaped +
+		"</p>"
 }

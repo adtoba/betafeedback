@@ -5,9 +5,9 @@ const features = [
     text: "Creators browse testers who’ve opted in — devices, platforms, and a short bio — then invite the right people instead of blasting a group chat.",
   },
   {
-    label: "Reciprocity",
+    label: "Pro",
     title: "Test-for-test swaps",
-    text: "Propose a swap: you test their build, they test yours. Accept from the swaps inbox and both projects get a tester without hunting.",
+    text: "Propose a swap: you test their build, they test yours. Accept from the swaps inbox and both projects get a tester without hunting. Included on Pro.",
   },
   {
     label: "Structure",

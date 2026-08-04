@@ -1,11 +1,11 @@
 const faqs = [
   {
     q: "How do I find testers?",
-    a: "Turn on “Open to test” in your profile to appear when creators are recruiting. As a creator, open Find testers on a project to browse opted-in people, invite them, or propose a test-for-test swap with another creator who’s open to swaps.",
+    a: "Turn on “Open to test” in your profile to appear when creators are recruiting. As a creator, open Find testers on a project to browse opted-in people and invite them. Test-for-test swaps with other creators are available on Pro.",
   },
   {
     q: "What is a test-for-test swap?",
-    a: "You propose that you’ll test their project if they test yours. They accept from the swaps inbox, and both of you get access as testers — useful when you don’t have a ready tester pool yet.",
+    a: "A Pro feature: you propose that you’ll test their project if they test yours. They accept from the swaps inbox, and both of you get access as testers — useful when you don’t have a ready tester pool yet.",
   },
   {
     q: "How does the AI turn feedback into a bug?",
@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: "How much does it cost?",
-    a: "BetaFeedback is free to start with one project. Pro ($12/mo) adds unlimited projects, CSV export, and email notifications.",
+    a: "Free includes one full project — invites, AI bug structuring, CSV export, and email notifications. Pro ($12/mo) adds unlimited projects and test-for-test swaps.",
   },
   {
     q: "When is it available?",

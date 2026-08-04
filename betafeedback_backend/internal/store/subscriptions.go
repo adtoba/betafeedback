@@ -139,10 +139,10 @@ func (s *Store) SetSubscriptionFromBilling(
 		return model.Subscription{}, err
 	}
 
-	// Email notifications are a Pro perk — clear when downgrading.
+	// Test-for-test is a Pro perk — leave the marketplace when downgrading.
 	if plan == "free" {
 		if _, err := s.pool.Exec(ctx,
-			`UPDATE users SET email_notifications = false WHERE id = $1`, userID,
+			`UPDATE users SET open_to_swap = false WHERE id = $1`, userID,
 		); err != nil {
 			return model.Subscription{}, err
 		}

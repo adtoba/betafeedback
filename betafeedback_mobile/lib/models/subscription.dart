@@ -69,15 +69,15 @@ extension SubscriptionPlanInfo on SubscriptionPlan {
 
   List<String> get features => switch (this) {
     SubscriptionPlan.free => const [
-      '1 active project',
+      '1 project with full beta tools',
       'Unlimited testers & developers',
       'AI bug structuring',
-      'Custom project logo',
+      'CSV export & email notifications',
     ],
     SubscriptionPlan.pro => const [
       'Unlimited projects',
-      'Export bugs & feedback (CSV)',
-      'Email notifications',
+      'Test-for-test swaps',
+      'Everything on Free',
     ],
   };
 }

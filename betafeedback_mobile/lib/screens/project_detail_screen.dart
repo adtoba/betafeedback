@@ -18,7 +18,6 @@ import '../widgets/empty_state.dart';
 import '../widgets/feedback_card.dart';
 import '../widgets/grouped_list.dart';
 import '../widgets/metric_strip.dart';
-import '../widgets/plan_picker_sheet.dart';
 import '../widgets/project_logo.dart';
 import '../widgets/status_pill.dart';
 import '../widgets/team_member_tile.dart';
@@ -145,30 +144,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                               PostReleaseSheet(projectId: project.id),
                         );
                       case 'export_bugs':
-                        if (appState.isPro) {
-                          _exportData(context, appState, project.id, 'bugs');
-                        } else {
-                          showUpgradeSheet(
-                            context,
-                            appState,
-                            title: 'Export with Pro',
-                          );
-                        }
+                        _exportData(context, appState, project.id, 'bugs');
                       case 'export_feedback':
-                        if (appState.isPro) {
-                          _exportData(
-                            context,
-                            appState,
-                            project.id,
-                            'feedback',
-                          );
-                        } else {
-                          showUpgradeSheet(
-                            context,
-                            appState,
-                            title: 'Export with Pro',
-                          );
-                        }
+                        _exportData(
+                          context,
+                          appState,
+                          project.id,
+                          'feedback',
+                        );
                     }
                   },
                   itemBuilder: (context) => [
@@ -199,20 +182,16 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                       ),
                       PopupMenuItem(
                         value: 'export_bugs',
-                        child: _MenuRow(
+                        child: const _MenuRow(
                           icon: AppIcons.download,
-                          label: appState.isPro
-                              ? 'Export bugs (CSV)'
-                              : 'Export bugs (Pro)',
+                          label: 'Export bugs (CSV)',
                         ),
                       ),
                       PopupMenuItem(
                         value: 'export_feedback',
-                        child: _MenuRow(
+                        child: const _MenuRow(
                           icon: AppIcons.download,
-                          label: appState.isPro
-                              ? 'Export feedback (CSV)'
-                              : 'Export feedback (Pro)',
+                          label: 'Export feedback (CSV)',
                         ),
                       ),
                     ],

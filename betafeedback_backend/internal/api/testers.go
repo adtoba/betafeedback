@@ -53,6 +53,18 @@ func (s *Server) updateTesterProfile(w http.ResponseWriter, r *http.Request, use
 	}
 	if req.OpenToSwap != nil {
 		openSwap = *req.OpenToSwap
+		if openSwap {
+			pro, checkErr := s.store.UserIsPro(r.Context(), userID)
+			if checkErr != nil {
+				s.serverError(w, "check subscription", checkErr)
+				return
+			}
+			if !pro {
+				writeError(w, http.StatusPaymentRequired,
+					"test-for-test swaps are available on the Pro plan")
+				return
+			}
+		}
 	}
 	if req.TesterBio != nil {
 		bio = strings.TrimSpace(*req.TesterBio)

@@ -9,7 +9,7 @@ import { BugBoard } from "@/components/dashboard/BugBoard";
 import { DashboardHeader, RequireAuth } from "@/components/dashboard/DashboardHeader";
 import { FeedbackPanel } from "@/components/dashboard/FeedbackPanel";
 import { ProjectOverview } from "@/components/dashboard/ProjectOverview";
-import { ApiError, apiRequest, downloadExport } from "@/lib/api-client";
+import { apiRequest, downloadExport } from "@/lib/api-client";
 import { canManageBugs, roleForProject } from "@/lib/project-utils";
 import { useAuth } from "@/context/auth-context";
 import type { Activity, Feedback, Project } from "@/lib/types";
@@ -102,11 +102,7 @@ export default function ProjectPage() {
     try {
       await downloadExport(projectId, type, token);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 402) {
-        setExportError("Export is available on the Pro plan.");
-      } else {
-        setExportError(err instanceof Error ? err.message : "Export failed");
-      }
+      setExportError(err instanceof Error ? err.message : "Export failed");
     }
   }
 

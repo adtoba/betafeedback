@@ -9,6 +9,7 @@ import '../theme/app_tokens.dart';
 import '../widgets/app_header.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/metric_strip.dart';
+import '../widgets/plan_picker_sheet.dart';
 import '../widgets/status_pill.dart';
 
 /// Browse opted-in testers and invite them to [projectId], or propose swaps.
@@ -158,6 +159,16 @@ class _FindTestersScreenState extends State<FindTestersScreen>
   Future<void> _proposeSwap(SwapPartner partner) async {
     if (!partner.canPropose || _proposing.contains(partner.id)) return;
 
+    final appState = AppScope.of(context);
+    if (!appState.isPro) {
+      showUpgradeSheet(
+        context,
+        appState,
+        title: 'Test-for-test is on Pro',
+      );
+      return;
+    }
+
     SwapProject? theirProject = partner.projects.length == 1
         ? partner.projects.first
         : null;
@@ -251,11 +262,6 @@ class _FindTestersScreenState extends State<FindTestersScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSwaps = _tabs.index == 1;
-    final title = widget.projectName.isEmpty
-        ? (onSwaps ? 'Test-for-test' : 'Find testers')
-        : (onSwaps
-              ? 'Swap for ${widget.projectName}'
-              : 'Find testers for ${widget.projectName}');
 
     return Scaffold(
       appBar: AppBar(
@@ -294,11 +300,25 @@ class _FindTestersScreenState extends State<FindTestersScreen>
                   const SizedBox(height: AppSpace.lg),
                   Text(
                     onSwaps
-                        ? 'Propose a swap with creators who also need testers. '
-                              'You join theirs, they join yours.'
+                        ? (AppScope.of(context).isPro
+                              ? 'Propose a swap with creators who also need testers. '
+                                    'You join theirs, they join yours.'
+                              : 'Test-for-test swaps are on Pro. Browse partners here, '
+                                    'then upgrade to propose a swap.')
                         : 'Invite people who are open to testing apps on BetaFeedback.',
                     style: theme.textTheme.bodySmall,
                   ),
+                  if (onSwaps && !AppScope.of(context).isPro) ...[
+                    const SizedBox(height: AppSpace.md),
+                    FilledButton(
+                      onPressed: () => showUpgradeSheet(
+                        context,
+                        AppScope.of(context),
+                        title: 'Test-for-test is on Pro',
+                      ),
+                      child: const Text('Upgrade to Pro'),
+                    ),
+                  ],
                   const SizedBox(height: AppSpace.lg),
                   TextField(
                     controller: _search,

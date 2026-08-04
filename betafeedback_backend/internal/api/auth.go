@@ -120,9 +120,16 @@ func (s *Server) authEmailStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := s.otp.generate(email)
-	// A real deployment emails the code here. In development we log it (and
-	// optionally return it) so the flow is testable without a mail provider.
-	s.logger.Info("otp issued", "email", email, "code", code)
+	if s.cfg.OTPDebug {
+		s.logger.Info("otp issued", "email", email, "code", code)
+	} else {
+		s.logger.Info("otp issued", "email", email)
+	}
+
+	if err := s.mailer.SendOTP(r.Context(), email, code); err != nil {
+		s.serverError(w, "send otp email", err)
+		return
+	}
 
 	resp := map[string]any{"expires_in": int(otpTTL.Seconds())}
 	if s.cfg.OTPDebug {

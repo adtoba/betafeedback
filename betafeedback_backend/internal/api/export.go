@@ -19,22 +19,15 @@ func (s *Server) exportProject(w http.ResponseWriter, r *http.Request, userID st
 		return
 	}
 
-	pro, err := s.store.UserIsPro(r.Context(), userID)
-	if err != nil {
-		s.serverError(w, "check subscription", err)
-		return
-	}
-	if !pro {
-		writeError(w, http.StatusPaymentRequired, "export is available on the Pro plan")
-		return
-	}
-
 	kind := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("type")))
 	if kind == "" {
 		kind = "bugs"
 	}
 
-	var csv string
+	var (
+		csv string
+		err error
+	)
 	switch kind {
 	case "bugs":
 		csv, err = s.store.ExportBugsCSV(r.Context(), id)

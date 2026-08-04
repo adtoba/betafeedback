@@ -41,12 +41,25 @@ internal/api          routing, middleware, auth, handlers
 Passwordless email one-time-code, mirroring the mobile app:
 
 1. `POST /v1/auth/email/start` `{ "email": "you@x.com" }` — issues a 6-digit
-   code. With `OTP_DEBUG=true` the code is returned as `debug_code` (dev only;
-   a real deployment emails it instead).
+   code and emails it via Resend when `RESEND_API_KEY` is set. With
+   `OTP_DEBUG=true` the code is also returned as `debug_code` (dev only).
 2. `POST /v1/auth/email/verify` `{ "email", "code" }` — returns a JWT and the
    user; creates the user on first sign-in.
 
 Send the token as `Authorization: Bearer <token>` on all `/v1/*` routes below.
+
+## Email (Resend)
+
+OTP sign-in codes and Pro/project notification emails go through
+[Resend](https://resend.com). Set:
+
+```bash
+RESEND_API_KEY=re_xxxxxxxx
+RESEND_FROM=BetaFeedback <noreply@betafeedback.com>
+```
+
+`RESEND_FROM` must use a domain verified in Resend. Without an API key, sends
+are logged to stdout (useful locally with `OTP_DEBUG=true`).
 
 ## Endpoints
 

@@ -11,7 +11,7 @@ import (
 )
 
 // Config configures FCM delivery. When [CredentialsPath] is empty, sends are
-// logged instead of delivered (same pattern as SMTP in development).
+// logged instead of delivered (same pattern as Resend in development).
 type Config struct {
 	CredentialsPath string
 }

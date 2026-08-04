@@ -57,7 +57,7 @@ func (s *Store) attachTesterStats(ctx context.Context, u *model.User) error {
 	`, u.ID).Scan(&u.TesterRatingAvg, &u.TesterRatingCount)
 }
 
-// SetEmailNotifications toggles Pro email alerts for a user.
+// SetEmailNotifications toggles email alerts for a user.
 func (s *Store) SetEmailNotifications(ctx context.Context, userID string, enabled bool) (model.User, error) {
 	row := s.pool.QueryRow(ctx, `
 		UPDATE users SET email_notifications = $2 WHERE id = $1
@@ -109,14 +109,13 @@ func (s *Store) UpdateTesterProfile(ctx context.Context, userID string, openToTe
 }
 
 // ListProEmailRecipients returns creator/developer members of a project who
-// opted into email notifications on a Pro plan.
+// opted into email notifications.
 func (s *Store) ListProEmailRecipients(ctx context.Context, projectID string) ([]model.User, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT u.id::text, u.email, u.name, u.avatar_hue, u.email_notifications, u.push_notifications,
 		       u.open_to_test, u.open_to_swap, u.tester_bio, u.created_at
 		FROM project_members m
 		JOIN users u ON u.id = m.user_id
-		JOIN subscriptions s ON s.user_id = u.id AND s.plan = 'pro'
 		WHERE m.project_id = $1
 		  AND m.role IN ('creator', 'developer')
 		  AND u.email_notifications = true

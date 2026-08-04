@@ -7,6 +7,7 @@ import '../theme/app_layout.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/plan_picker_sheet.dart';
 import '../widgets/project_logo.dart';
 import '../widgets/status_pill.dart';
 import 'project_detail_screen.dart';
@@ -49,10 +50,20 @@ class _TestSwapsScreenState extends State<TestSwapsScreen> {
   }
 
   Future<void> _accept(TestSwap swap) async {
+    final appState = AppScope.of(context);
+    if (!appState.isPro) {
+      showUpgradeSheet(
+        context,
+        appState,
+        title: 'Test-for-test is on Pro',
+      );
+      return;
+    }
+
     setState(() => _busy.add(swap.id));
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await AppScope.of(context).acceptSwap(swap.id);
+      await appState.acceptSwap(swap.id);
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(

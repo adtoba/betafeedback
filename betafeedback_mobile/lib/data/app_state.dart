@@ -705,8 +705,8 @@ class AppState extends ChangeNotifier {
         await _api.put('/v1/me/subscription', {'plan': plan.name})
             as Map<String, dynamic>;
     _subscription = Subscription.fromJson(res);
-    if (!isPro && _currentUser?.emailNotifications == true) {
-      _currentUser = _currentUser?.copyWith(emailNotifications: false);
+    if (!isPro && _currentUser?.openToSwap == true) {
+      _currentUser = _currentUser?.copyWith(openToSwap: false);
     }
     notifyListeners();
   }
@@ -945,7 +945,7 @@ class AppState extends ChangeNotifier {
     return swap;
   }
 
-  /// Downloads a CSV export (Pro). [type] is `bugs` or `feedback`.
+  /// Downloads a CSV export. [type] is `bugs` or `feedback`.
   Future<String> exportProject({
     required String projectId,
     required String type,

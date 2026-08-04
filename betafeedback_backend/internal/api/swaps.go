@@ -41,6 +41,10 @@ type createSwapRequest struct {
 }
 
 func (s *Server) createSwap(w http.ResponseWriter, r *http.Request, userID string) {
+	if !s.requireProForSwaps(w, r, userID) {
+		return
+	}
+
 	var req createSwapRequest
 	if err := decode(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -118,7 +122,25 @@ func (s *Server) cancelSwap(w http.ResponseWriter, r *http.Request, userID strin
 	s.respondSwap(w, r, userID, "cancel")
 }
 
+func (s *Server) requireProForSwaps(w http.ResponseWriter, r *http.Request, userID string) bool {
+	pro, err := s.store.UserIsPro(r.Context(), userID)
+	if err != nil {
+		s.serverError(w, "check subscription", err)
+		return false
+	}
+	if !pro {
+		writeError(w, http.StatusPaymentRequired,
+			"test-for-test swaps are available on the Pro plan")
+		return false
+	}
+	return true
+}
+
 func (s *Server) respondSwap(w http.ResponseWriter, r *http.Request, userID, action string) {
+	if action == "accept" && !s.requireProForSwaps(w, r, userID) {
+		return
+	}
+
 	swapID := r.PathValue("swapId")
 	var (
 		sw  model.TestSwap

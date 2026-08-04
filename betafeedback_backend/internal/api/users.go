@@ -41,18 +41,6 @@ func (s *Server) updatePreferences(w http.ResponseWriter, r *http.Request, userI
 	var err error
 
 	if req.EmailNotifications != nil {
-		if *req.EmailNotifications {
-			pro, checkErr := s.store.UserIsPro(r.Context(), userID)
-			if checkErr != nil {
-				s.serverError(w, "check subscription", checkErr)
-				return
-			}
-			if !pro {
-				writeError(w, http.StatusPaymentRequired,
-					"email notifications are available on the Pro plan")
-				return
-			}
-		}
 		user, err = s.store.SetEmailNotifications(r.Context(), userID, *req.EmailNotifications)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {

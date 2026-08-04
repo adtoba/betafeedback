@@ -33,12 +33,9 @@ type Config struct {
 	RevenueCatWebhookAuth string
 	// Entitlement identifier for Pro in the RevenueCat dashboard (default: pro).
 	RevenueCatEntitlementID string
-	// Optional SMTP settings for Pro email notifications.
-	SMTPHost     string
-	SMTPPort     string
-	SMTPUser     string
-	SMTPPassword string
-	SMTPFrom     string
+	// Optional Resend email (OTP + notifications). Logs instead when unset.
+	ResendAPIKey string
+	ResendFrom   string
 }
 
 // Load reads configuration from the environment, optionally seeding it from a
@@ -62,11 +59,8 @@ func Load() (Config, error) {
 		FirebaseCredentialsPath: os.Getenv("FIREBASE_CREDENTIALS_PATH"),
 		RevenueCatWebhookAuth:   os.Getenv("REVENUECAT_WEBHOOK_AUTH"),
 		RevenueCatEntitlementID: getenv("REVENUECAT_ENTITLEMENT_ID", "pro"),
-		SMTPHost:     os.Getenv("SMTP_HOST"),
-		SMTPPort:     getenv("SMTP_PORT", "587"),
-		SMTPUser:     os.Getenv("SMTP_USER"),
-		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
-		SMTPFrom:     os.Getenv("SMTP_FROM"),
+		ResendAPIKey:            os.Getenv("RESEND_API_KEY"),
+		ResendFrom:              getenv("RESEND_FROM", "BetaFeedback <noreply@betafeedback.com>"),
 	}
 
 	if cfg.DatabaseURL == "" {

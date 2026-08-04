@@ -80,7 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     _AppearanceRow(appState: appState),
                     _PushRow(appState: appState),
-                    _EmailRow(appState: appState, subscription: sub),
+                    _EmailRow(appState: appState),
                     if (appState.currentUser.openToTest ||
                         appState.pendingTesterInviteCount > 0)
                       GroupedListTile(
@@ -317,6 +317,14 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
   }
 
   Future<void> _setOpenSwap(bool value) async {
+    if (value && !widget.appState.isPro) {
+      showUpgradeSheet(
+        context,
+        widget.appState,
+        title: 'Test-for-test is on Pro',
+      );
+      return;
+    }
     setState(() => _saving = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -394,7 +402,9 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
         GroupedListTile(
           icon: AppIcons.repeat,
           title: 'Open to test-for-test',
-          subtitle: 'Swap testing with other creators',
+          subtitle: widget.appState.isPro
+              ? 'Swap testing with other creators'
+              : 'Pro — swap testing with other creators',
           showChevron: false,
           trailing: _saving
               ? const SizedBox(
@@ -638,33 +648,28 @@ class _PushRow extends StatelessWidget {
 }
 
 class _EmailRow extends StatelessWidget {
-  const _EmailRow({required this.appState, required this.subscription});
+  const _EmailRow({required this.appState});
 
   final AppState appState;
-  final Subscription subscription;
 
   @override
   Widget build(BuildContext context) {
-    final isPro = subscription.plan == SubscriptionPlan.pro;
     final enabled = appState.currentUser.emailNotifications;
 
     return GroupedListTile(
       icon: AppIcons.mail,
       title: 'Email notifications',
-      subtitle: isPro ? null : 'Available on Pro',
       showChevron: false,
       trailing: Switch.adaptive(
-        value: isPro && enabled,
-        onChanged: isPro
-            ? (value) async {
-                final messenger = ScaffoldMessenger.of(context);
-                try {
-                  await appState.setEmailNotifications(value);
-                } catch (e) {
-                  messenger.showSnackBar(SnackBar(content: Text('$e')));
-                }
-              }
-            : null,
+        value: enabled,
+        onChanged: (value) async {
+          final messenger = ScaffoldMessenger.of(context);
+          try {
+            await appState.setEmailNotifications(value);
+          } catch (e) {
+            messenger.showSnackBar(SnackBar(content: Text('$e')));
+          }
+        },
       ),
     );
   }
