@@ -12,8 +12,9 @@ import (
 // Config configures outbound email via Resend. When [Enabled] is false, sends
 // are logged instead of delivered (handy for local development).
 type Config struct {
-	APIKey string
-	From   string
+	APIKey     string
+	From       string
+	AppBaseURL string
 }
 
 type Sender struct {
@@ -34,25 +35,41 @@ func (c Config) Enabled() bool {
 	return strings.TrimSpace(c.APIKey) != "" && strings.TrimSpace(c.From) != ""
 }
 
-// Send delivers a plain-text email (with a matching HTML body). No-op (with a
-// log line) when Resend is unset.
-func (s *Sender) Send(ctx context.Context, to, subject, body string) error {
-	to = strings.TrimSpace(to)
+// AppBaseURL returns the configured public web origin (no trailing slash).
+func (s *Sender) AppBaseURL() string {
+	return strings.TrimRight(strings.TrimSpace(s.cfg.AppBaseURL), "/")
+}
+
+// ProjectURL builds a dashboard deep link for a project.
+func (s *Sender) ProjectURL(projectID string) string {
+	base := s.AppBaseURL()
+	if base == "" || projectID == "" {
+		return ""
+	}
+	return base + "/app/projects/" + projectID
+}
+
+// SendMessage delivers a branded transactional email.
+func (s *Sender) SendMessage(ctx context.Context, msg Message) error {
+	to := strings.TrimSpace(msg.To)
 	if to == "" {
 		return nil
 	}
+	text := msg.Text()
+	htmlBody := msg.HTML()
+
 	if !s.cfg.Enabled() || s.client == nil {
 		s.logger.Info("email (resend not configured)",
-			"to", to, "subject", subject, "body", body)
+			"to", to, "subject", msg.Subject, "body", text)
 		return nil
 	}
 
 	params := &resend.SendEmailRequest{
 		From:    s.cfg.From,
 		To:      []string{to},
-		Subject: subject,
-		Text:    body,
-		Html:    textToHTML(body),
+		Subject: msg.Subject,
+		Text:    text,
+		Html:    htmlBody,
 	}
 	_, err := s.client.Emails.SendWithContext(ctx, params)
 	if err != nil {
@@ -63,21 +80,7 @@ func (s *Sender) Send(ctx context.Context, to, subject, body string) error {
 
 // SendOTP emails a sign-in verification code.
 func (s *Sender) SendOTP(ctx context.Context, to, code string) error {
-	subject := "Your BetaFeedback sign-in code"
-	body := fmt.Sprintf(
-		"Your BetaFeedback sign-in code is %s.\n\n"+
-			"It expires in 10 minutes. If you didn't request this, you can ignore this email.\n",
-		code,
-	)
-	return s.Send(ctx, to, subject, body)
-}
-
-func textToHTML(body string) string {
-	escaped := strings.ReplaceAll(body, "&", "&amp;")
-	escaped = strings.ReplaceAll(escaped, "<", "&lt;")
-	escaped = strings.ReplaceAll(escaped, ">", "&gt;")
-	escaped = strings.ReplaceAll(escaped, "\n", "<br>\n")
-	return "<p style=\"font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#111\">" +
-		escaped +
-		"</p>"
+	msg := OTP(code)
+	msg.To = to
+	return s.SendMessage(ctx, msg)
 }

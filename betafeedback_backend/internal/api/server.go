@@ -45,8 +45,9 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) *Serv
 			OpenAIModel:  cfg.OpenAIModel,
 		}, logger),
 		mailer: mail.NewSender(mail.Config{
-			APIKey: cfg.ResendAPIKey,
-			From:   cfg.ResendFrom,
+			APIKey:     cfg.ResendAPIKey,
+			From:       cfg.ResendFrom,
+			AppBaseURL: cfg.AppBaseURL,
 		}, logger),
 		pusher: pusher,
 	}
