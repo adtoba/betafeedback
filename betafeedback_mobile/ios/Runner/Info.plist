@@ -89,6 +89,16 @@
 		<string>com.googleusercontent.apps.629984102803-1oh04iq2pl15ialne81gos0m8vh4uavj</string>
 		</array>
 	</dict>
+	<dict>
+		<key>CFBundleTypeRole</key>
+		<string>Editor</string>
+		<key>CFBundleURLName</key>
+		<string>com.betafeedback.app</string>
+		<key>CFBundleURLSchemes</key>
+		<array>
+		<string>betafeedback</string>
+		</array>
+	</dict>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

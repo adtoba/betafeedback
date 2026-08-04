@@ -21,7 +21,7 @@ func TestOTPHTMLIncludesCode(t *testing.T) {
 }
 
 func TestNewFeedbackEscapesHTML(t *testing.T) {
-	msg := NewFeedback("App <x>", "Ada", "Title & more", "Body <script>", "https://betafeedback.com/app/projects/1")
+	msg := NewFeedback("App <x>", "Ada", "Title & more", "Body <script>", "https://betafeedback.com/open/projects/1")
 	html := msg.HTML()
 	if strings.Contains(html, "<script>") {
 		t.Fatal("unescaped script in HTML")
@@ -33,7 +33,7 @@ func TestNewFeedbackEscapesHTML(t *testing.T) {
 		t.Fatal("missing CTA")
 	}
 	text := msg.Text()
-	if !strings.Contains(text, "https://betafeedback.com/app/projects/1") {
+	if !strings.Contains(text, "https://betafeedback.com/open/projects/1") {
 		t.Fatal("missing CTA URL in text")
 	}
 }

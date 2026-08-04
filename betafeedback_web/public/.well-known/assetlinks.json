@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.betafeedback.app",
+      "sha256_cert_fingerprints": [
+        "5F:BD:FE:75:A8:33:42:66:3A:B5:01:48:C0:A1:DC:05:28:CE:0C:29:2E:EC:1C:F1:75:79:E5:DD:0F:2A:CC:E5"
+      ]
+    }
+  }
+]

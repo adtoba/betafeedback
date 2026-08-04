@@ -40,13 +40,13 @@ func (s *Sender) AppBaseURL() string {
 	return strings.TrimRight(strings.TrimSpace(s.cfg.AppBaseURL), "/")
 }
 
-// ProjectURL builds a dashboard deep link for a project.
+// ProjectURL builds an open-in-app deep link for a project.
 func (s *Sender) ProjectURL(projectID string) string {
 	base := s.AppBaseURL()
 	if base == "" || projectID == "" {
 		return ""
 	}
-	return base + "/app/projects/" + projectID
+	return base + "/open/projects/" + projectID
 }
 
 // SendMessage delivers a branded transactional email.

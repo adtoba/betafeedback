@@ -7,24 +7,33 @@ import 'data/app_state.dart';
 import 'screens/auth/sign_in_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/api_config.dart';
+import 'services/deep_link_service.dart';
 import 'theme/app_icons.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_tokens.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
+final _deepLinks = DeepLinkService();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiConfig.load();
   final appState = AppState();
   appState.pushService.navigatorKey = _navigatorKey;
-  runApp(BetaFeedbackApp(appState: appState));
+  _deepLinks.navigatorKey = _navigatorKey;
+  await _deepLinks.start();
+  runApp(BetaFeedbackApp(appState: appState, deepLinks: _deepLinks));
 }
 
 class BetaFeedbackApp extends StatefulWidget {
-  const BetaFeedbackApp({super.key, required this.appState});
+  BetaFeedbackApp({
+    super.key,
+    required this.appState,
+    DeepLinkService? deepLinks,
+  }) : deepLinks = deepLinks ?? DeepLinkService();
 
   final AppState appState;
+  final DeepLinkService deepLinks;
 
   @override
   State<BetaFeedbackApp> createState() => _BetaFeedbackAppState();
@@ -44,11 +53,17 @@ class _BetaFeedbackAppState extends State<BetaFeedbackApp> {
   @override
   void dispose() {
     widget.appState.removeListener(_onAppStateChanged);
+    widget.deepLinks.dispose();
     super.dispose();
   }
 
   /// Rebuild [MaterialApp] only when theme changes — not on every cache update.
+  /// Also gates deep-link navigation on signed-in bootstrap.
   void _onAppStateChanged() {
+    final ready =
+        widget.appState.isBootstrapped && widget.appState.isSignedIn;
+    widget.deepLinks.setNavigationReady(ready);
+
     final next = widget.appState.themeMode;
     if (next == _themeMode) return;
     setState(() => _themeMode = next);

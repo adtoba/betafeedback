@@ -1,0 +1,19 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "S2BAR9U8D8.com.betafeedback.app",
+        "paths": [
+          "/open/*",
+          "/join/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "S2BAR9U8D8.com.betafeedback.app"
+    ]
+  }
+}

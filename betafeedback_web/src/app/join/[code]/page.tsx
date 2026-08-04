@@ -120,14 +120,23 @@ export default function JoinPage() {
             <div className="join-actions">
               <a
                 className="btn btn--primary btn--lg"
-                href="mailto:hello@betafeedback.com?subject=BetaFeedback%20app%20access"
+                href={`betafeedback://join/${encodeURIComponent(code)}`}
               >
-                Get the app
+                Open in BetaFeedback
               </a>
             </div>
             <p className="join-foot">
-              App Store &amp; Google Play links are coming soon — meanwhile we’ll get you set up.
+              Don&apos;t have the app? Request early access below — then sign in
+              and enter the invite code.
             </p>
+            <div style={{ marginTop: 16 }}>
+              <a
+                className="btn btn--ghost btn--lg"
+                href="mailto:hello@betafeedback.com?subject=BetaFeedback%20app%20access"
+              >
+                Get early access
+              </a>
+            </div>
           </div>
         )}
 

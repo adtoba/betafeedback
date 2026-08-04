@@ -25,6 +25,35 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Custom scheme: betafeedback://projects/{id} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="betafeedback"/>
+            </intent-filter>
+            <!-- App Links: https://betafeedback.com/open/... -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="betafeedback.com"
+                    android:pathPrefix="/open"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.betafeedback.com"
+                    android:pathPrefix="/open"/>
+                <data
+                    android:scheme="https"
+                    android:host="betafeedback.com"
+                    android:pathPrefix="/join"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.betafeedback.com"
+                    android:pathPrefix="/join"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

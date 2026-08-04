@@ -33,7 +33,7 @@ test plan, releases, activity, notifications, and subscriptions.
 
 **Email** — one-time code. In development (`OTP_DEBUG=true`) the code appears on the verification screen.
 
-**Google** — uses the same `/v1/auth/google` endpoint as the web dashboard.
+**Google** — uses the same `/v1/auth/google` endpoint as other clients.
 
 1. In Google Cloud, create OAuth clients for **Web**, **iOS** (`com.betafeedback.app`), and **Android** (`com.betafeedback.app` + SHA-1).
 2. In `betafeedback_backend/.env`:
@@ -61,6 +61,11 @@ See [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) for Firebase project setup,
 
 Push alerts fire for new releases, feedback, and AI-suggested bugs. Toggle them in **Profile → Push notifications**.
 
+## Deep linking
+
+Email CTAs open the app via Universal Links / App Links. See
+[docs/DEEP_LINKS.md](docs/DEEP_LINKS.md).
+
 ## Subscriptions (RevenueCat)
 
 Pro upgrades go through RevenueCat / App Store / Play Billing. See
@@ -78,7 +83,7 @@ toggle (`ENV=development` only).
 
 ## Architecture
 
-- `lib/services/` — `ApiClient`, `BillingService` (RevenueCat), `ApiConfig`.
+- `lib/services/` — `ApiClient`, `BillingService` (RevenueCat), `DeepLinkService`, `ApiConfig`.
 - `lib/data/app_state.dart` — `ChangeNotifier` that calls the API and caches
   results; the UI reads cached data synchronously and rebuilds on change.
 - `lib/models/` — domain types with `fromJson` parsing.

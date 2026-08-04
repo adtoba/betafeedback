@@ -1,16 +1,17 @@
 # BetaFeedback Web
 
-Marketing site, invite pages, and the **developer dashboard** for [BetaFeedback](https://betafeedback.com), built with [Next.js](https://nextjs.org).
+Marketing site and invite / open-in-app pages for [BetaFeedback](https://betafeedback.com),
+built with [Next.js](https://nextjs.org). The product experience is **mobile-first** —
+there is no web developer dashboard login.
 
 ## Pages
 
 | Route | Description |
 |-------|-------------|
 | `/` | Marketing landing page |
-| `/join/[code]` | Invite landing page (fetches project info from the API) |
-| `/app/login` | Developer sign-in (email OTP) |
-| `/app` | Project list (creators & developers) |
-| `/app/projects/[id]` | Bug summary — checklist & detailed cards |
+| `/join/[code]` | Invite landing (open app / get early access) |
+| `/open/projects/[id]` | Deep-link bridge for email CTAs |
+| `/app/*` | Redirects to home or `/open/...` (legacy dashboard removed) |
 
 ## Development
 
@@ -22,8 +23,6 @@ Marketing site, invite pages, and the **developer dashboard** for [BetaFeedback]
 
 2. Start the Go API (`betafeedback_backend`, default port 8080).
 
-   Ensure `OTP_DEBUG=true` in the backend `.env` during local dev so sign-in codes appear in the API response and login UI.
-
 3. Run the site:
 
    ```bash
@@ -32,27 +31,24 @@ Marketing site, invite pages, and the **developer dashboard** for [BetaFeedback]
    ```
 
    - Marketing: [http://localhost:3000](http://localhost:3000)
-   - Developer dashboard: [http://localhost:3000/app/login](http://localhost:3000/app/login)
+   - Open bridge example: [http://localhost:3000/open/projects/demo](http://localhost:3000/open/projects/demo)
 
-`/v1/*` requests are proxied to `API_URL` via Next.js rewrites, so the join page and dashboard work without CORS setup in local dev.
+`/v1/*` requests are proxied to `API_URL` via Next.js rewrites (used by the join page).
 
-## Developer dashboard
+## Deep links
 
-Sign in at `/app/login` with **Google** or **email OTP** (same accounts as mobile).
+Email and notification CTAs use:
 
-Set matching Google OAuth IDs on backend and web:
+`https://betafeedback.com/open/projects/{id}`
 
-```bash
-# betafeedback_backend/.env
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+When the app is installed and Universal/App Links are verified, that URL opens
+the Flutter app. Otherwise the open page offers a custom-scheme button
+(`betafeedback://projects/{id}`) and store / early-access badges.
 
-# betafeedback_web/.env.local
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-```
+Association files live in `public/.well-known/`:
 
-Create a **Web application** OAuth client in [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Add `http://localhost:3000` to authorized JavaScript origins for local dev.
-
-Only projects where you are **creator** or **developer** appear on `/app`.
+- `apple-app-site-association`
+- `assetlinks.json` (update the SHA-256 fingerprint for your Play signing key)
 
 ## Production (Vercel)
 

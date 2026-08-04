@@ -11,9 +11,6 @@ export function Nav() {
           <a href="#faq">FAQ</a>
         </nav>
         <div className="nav__cta">
-          <a className="btn btn--ghost btn--sm" href="/app/login">
-            Sign in
-          </a>
           <a className="btn btn--primary btn--sm" href="#download">
             Get the app
           </a>
