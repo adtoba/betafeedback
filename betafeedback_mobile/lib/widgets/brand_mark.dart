@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme/app_tokens.dart';
 
-/// Official BetaFeedback mark (β with feedback return on signal blue).
+/// Official BetaFeedback mark — same asset as the app launcher icon.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 34, this.borderRadius});
 
@@ -12,24 +11,29 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SvgPicture.asset(
-      'assets/brand/mark.svg',
-      width: size,
-      height: size,
-      fit: BoxFit.contain,
-      placeholderBuilder: (_) => _FallbackMark(size: size),
+    final radius = borderRadius ?? (size * 0.22);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Image.asset(
+        'assets/brand/app-icon-full.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (_, _, _) => _FallbackMark(size: size, radius: radius),
+      ),
     );
   }
 }
 
 class _FallbackMark extends StatelessWidget {
-  const _FallbackMark({required this.size});
+  const _FallbackMark({required this.size, required this.radius});
 
   final double size;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
-    final radius = size * 0.22;
     return Container(
       width: size,
       height: size,

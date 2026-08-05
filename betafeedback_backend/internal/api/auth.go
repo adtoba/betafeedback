@@ -19,7 +19,15 @@ import (
 const (
 	tokenTTL = 7 * 24 * time.Hour
 	otpTTL   = 10 * time.Minute
+
+	// Fixed credentials for App Store / Play Store review accounts.
+	appReviewEmail = "appreview@betafeedback.com"
+	appReviewOTP   = "000000"
 )
+
+func isAppReviewEmail(email string) bool {
+	return strings.EqualFold(strings.TrimSpace(email), appReviewEmail)
+}
 
 // jwtManager issues and verifies signed session tokens.
 type jwtManager struct {
@@ -67,6 +75,9 @@ func newOTPStore() *otpStore {
 
 func (o *otpStore) generate(email string) string {
 	code := randomCode()
+	if isAppReviewEmail(email) {
+		code = appReviewOTP
+	}
 	o.mu.Lock()
 	o.codes[strings.ToLower(email)] = otpEntry{code: code, expires: time.Now().Add(otpTTL)}
 	o.mu.Unlock()
@@ -75,6 +86,13 @@ func (o *otpStore) generate(email string) string {
 
 func (o *otpStore) verify(email, code string) bool {
 	key := strings.ToLower(email)
+	code = strings.TrimSpace(code)
+	if isAppReviewEmail(email) && code == appReviewOTP {
+		o.mu.Lock()
+		delete(o.codes, key)
+		o.mu.Unlock()
+		return true
+	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	entry, ok := o.codes[key]
@@ -129,9 +147,12 @@ func (s *Server) authEmailStart(w http.ResponseWriter, r *http.Request) {
 		s.logger.Info("otp issued", "email", email)
 	}
 
-	if err := s.mailer.SendOTP(r.Context(), email, code); err != nil {
-		s.serverError(w, "send otp email", err)
-		return
+	// App review account uses a fixed code; skip email so delivery never blocks reviewers.
+	if !isAppReviewEmail(email) {
+		if err := s.mailer.SendOTP(r.Context(), email, code); err != nil {
+			s.serverError(w, "send otp email", err)
+			return
+		}
 	}
 
 	resp := map[string]any{"expires_in": int(otpTTL.Seconds())}
