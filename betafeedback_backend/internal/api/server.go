@@ -123,6 +123,16 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/me/subscription", s.requireAuth(s.getSubscription))
 	mux.HandleFunc("PUT /v1/me/subscription", s.requireAuth(s.updateSubscription))
 
+	// Internal ops admin (gated by ADMIN_EMAILS).
+	mux.HandleFunc("GET /v1/admin/me", s.requireAdmin(s.adminMe))
+	mux.HandleFunc("GET /v1/admin/overview", s.requireAdmin(s.adminOverview))
+	mux.HandleFunc("GET /v1/admin/users", s.requireAdmin(s.adminListUsers))
+	mux.HandleFunc("GET /v1/admin/users/{id}", s.requireAdmin(s.adminGetUser))
+	mux.HandleFunc("GET /v1/admin/projects", s.requireAdmin(s.adminListProjects))
+	mux.HandleFunc("GET /v1/admin/projects/{id}", s.requireAdmin(s.adminGetProject))
+	mux.HandleFunc("GET /v1/admin/feedback", s.requireAdmin(s.adminListFeedback))
+	mux.HandleFunc("GET /v1/admin/swaps", s.requireAdmin(s.adminListSwaps))
+
 	// RevenueCat billing webhooks (auth via REVENUECAT_WEBHOOK_AUTH header).
 	mux.HandleFunc("POST /v1/webhooks/revenuecat", s.revenueCatWebhook)
 

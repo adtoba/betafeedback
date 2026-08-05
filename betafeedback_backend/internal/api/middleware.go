@@ -33,6 +33,22 @@ func (s *Server) requireAuth(next authedHandler) http.HandlerFunc {
 	}
 }
 
+// requireAdmin requires a valid JWT whose user email is in ADMIN_EMAILS.
+func (s *Server) requireAdmin(next authedHandler) http.HandlerFunc {
+	return s.requireAuth(func(w http.ResponseWriter, r *http.Request, userID string) {
+		user, err := s.store.GetUser(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid token")
+			return
+		}
+		if !s.cfg.IsAdminEmail(user.Email) {
+			writeError(w, http.StatusForbidden, "admin access required")
+			return
+		}
+		next(w, r, userID)
+	})
+}
+
 func (s *Server) requestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
