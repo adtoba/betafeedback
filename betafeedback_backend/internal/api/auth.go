@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,6 +12,8 @@ import (
 
 	"cloud.google.com/go/auth/credentials/idtoken"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/adetoba/betafeedback_backend/internal/store"
 )
 
 const (
@@ -214,6 +217,67 @@ func (s *Server) authGoogle(w http.ResponseWriter, r *http.Request) {
 	user, err := s.store.UpsertUser(r.Context(), email, name, avatarHue(email))
 	if err != nil {
 		s.serverError(w, "upsert user", err)
+		return
+	}
+	jwt, err := s.jwt.issue(user.ID)
+	if err != nil {
+		s.serverError(w, "issue token", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"token": jwt, "user": user})
+}
+
+type appleAuthRequest struct {
+	IdentityToken string `json:"identity_token"`
+	Nonce         string `json:"nonce"`
+	FullName      string `json:"full_name"`
+	Email         string `json:"email"`
+}
+
+func (s *Server) authApple(w http.ResponseWriter, r *http.Request) {
+	audience := s.cfg.AppleClientID
+	if audience == "" {
+		writeError(w, http.StatusNotImplemented, "apple sign-in is not configured")
+		return
+	}
+
+	var req appleAuthRequest
+	if err := decode(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	token := strings.TrimSpace(req.IdentityToken)
+	if token == "" {
+		writeError(w, http.StatusBadRequest, "identity_token is required")
+		return
+	}
+
+	identity, err := validateAppleIdentityToken(token, audience, strings.TrimSpace(req.Nonce))
+	if err != nil {
+		s.logger.Info("apple token rejected", "err", err)
+		writeError(w, http.StatusUnauthorized, "invalid apple token")
+		return
+	}
+
+	email := identity.Email
+	if email == "" {
+		email = normalizeEmail(req.Email)
+	}
+	name := strings.TrimSpace(req.FullName)
+	if name == "" && email != "" {
+		name = nameFromEmail(email)
+	}
+	if name == "" {
+		name = "Apple user"
+	}
+
+	user, err := s.store.UpsertAppleUser(r.Context(), identity.Subject, email, name, avatarHue(identity.Subject+email))
+	if err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			writeError(w, http.StatusConflict, conflictMessage(err))
+			return
+		}
+		s.serverError(w, "upsert apple user", err)
 		return
 	}
 	jwt, err := s.jwt.issue(user.ID)

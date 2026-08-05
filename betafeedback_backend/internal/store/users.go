@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -134,4 +136,68 @@ func (s *Store) ListProEmailRecipients(ctx context.Context, projectID string) ([
 		out = append(out, u)
 	}
 	return out, rows.Err()
+}
+
+// UpsertAppleUser finds or creates a user for Sign in with Apple.
+// Lookup order: apple_sub → email (then link sub) → create.
+// email may be empty on subsequent Apple logins when the sub is already known.
+func (s *Store) UpsertAppleUser(ctx context.Context, appleSub, email, name string, hue int) (model.User, error) {
+	appleSub = strings.TrimSpace(appleSub)
+	email = strings.ToLower(strings.TrimSpace(email))
+	name = strings.TrimSpace(name)
+	if appleSub == "" {
+		return model.User{}, fmt.Errorf("%w: apple subject is required", ErrConflict)
+	}
+
+	row := s.pool.QueryRow(ctx, `
+		SELECT `+userColumns+`
+		FROM users WHERE apple_sub = $1
+	`, appleSub)
+	u, err := scanUser(row)
+	if err == nil {
+		if name != "" && name != "Apple user" && (u.Name == "" || u.Name == "Apple user" || strings.Contains(u.Name, "@")) {
+			updated, uerr := scanUser(s.pool.QueryRow(ctx, `
+				UPDATE users SET name = $2 WHERE id = $1
+				RETURNING `+userColumns+`
+			`, u.ID, name))
+			if uerr == nil {
+				return updated, nil
+			}
+		}
+		return u, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return model.User{}, err
+	}
+
+	if email == "" {
+		return model.User{}, fmt.Errorf("%w: apple account email is required on first sign-in", ErrConflict)
+	}
+	if name == "" {
+		name = email
+	}
+
+	row = s.pool.QueryRow(ctx, `
+		INSERT INTO users (email, name, avatar_hue, apple_sub)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (email) DO UPDATE
+		SET apple_sub = COALESCE(users.apple_sub, EXCLUDED.apple_sub),
+		    name = CASE
+				WHEN users.name = '' OR users.name = users.email THEN EXCLUDED.name
+				ELSE users.name
+			END
+		RETURNING `+userColumns+`
+	`, email, name, hue, appleSub)
+	u, err = scanUser(row)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	if _, err := s.pool.Exec(ctx, `
+		UPDATE users SET apple_sub = $2
+		WHERE id = $1 AND apple_sub IS NULL
+	`, u.ID, appleSub); err != nil {
+		return model.User{}, err
+	}
+	return u, nil
 }

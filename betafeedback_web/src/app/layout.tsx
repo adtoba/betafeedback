@@ -34,7 +34,11 @@ export const metadata: Metadata = {
     url: "https://betafeedback.com",
   },
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/brand/mark.svg", type: "image/svg+xml" },
+    ],
+    apple: "/brand/mark.svg",
   },
 };
 

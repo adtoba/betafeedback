@@ -8,9 +8,9 @@ import 'screens/auth/sign_in_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/api_config.dart';
 import 'services/deep_link_service.dart';
-import 'theme/app_icons.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_tokens.dart';
+import 'widgets/brand_mark.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
 final _deepLinks = DeepLinkService();
@@ -138,16 +138,7 @@ class _SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 56,
-              height: 56,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: const Icon(AppIcons.brand, color: Colors.white, size: 29),
-            ),
+            BrandMark(size: 56, borderRadius: AppRadius.md),
             const SizedBox(height: AppSpace.lg),
             Text('BetaFeedback', style: theme.textTheme.titleMedium),
           ],

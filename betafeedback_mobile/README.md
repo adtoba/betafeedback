@@ -53,7 +53,16 @@ test plan, releases, activity, notifications, and subscriptions.
 Optional Google client ID overrides can go in `.env` as `GOOGLE_WEB_CLIENT_ID` /
 `GOOGLE_IOS_CLIENT_ID` (otherwise the app uses `GET /v1/auth/config`).
 
-Apple sign-in is still coming soon.
+**Apple** — Sign in with Apple on iOS/macOS.
+
+1. In [Apple Developer](https://developer.apple.com/) → Identifiers → your App ID
+   (`com.betafeedback.app`), enable **Sign In with Apple**.
+2. Xcode capability is already in `ios/Runner/Runner.entitlements`.
+3. Backend audience defaults to `com.betafeedback.app` via `APPLE_CLIENT_ID`
+   (override in `.env` if needed). Redeploy so migration `0014_apple_sign_in`
+   runs and `/v1/auth/apple` is live.
+4. Test on a real device (or Simulator with an Apple ID that supports Sign in
+   with Apple).
 
 ## Push notifications (FCM)
 

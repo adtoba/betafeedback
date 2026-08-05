@@ -11,6 +11,7 @@ import '../models/test_item.dart';
 import '../models/tester.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
+import '../services/apple_auth_service.dart';
 import '../services/billing_service.dart';
 import '../services/google_auth_service.dart';
 import '../services/push_notification_service.dart';
@@ -22,11 +23,13 @@ class AppState extends ChangeNotifier {
   AppState({
     ApiClient? api,
     GoogleAuthService? googleAuth,
+    AppleAuthService? appleAuth,
     PushNotificationService? push,
     BillingService? billing,
   }) : this._withApi(
          api ?? ApiClient(baseUrl: 'https://api.betafeedback.com'),
          googleAuth,
+         appleAuth,
          push,
          billing,
        );
@@ -34,14 +37,17 @@ class AppState extends ChangeNotifier {
   AppState._withApi(
     this._api,
     GoogleAuthService? googleAuth,
+    AppleAuthService? appleAuth,
     PushNotificationService? push,
     BillingService? billing,
   ) : _googleAuth = googleAuth ?? GoogleAuthService(api: _api),
+      _appleAuth = appleAuth ?? AppleAuthService(),
       _push = push ?? PushNotificationService(api: _api),
       _billing = billing ?? BillingService();
 
   final ApiClient _api;
   final GoogleAuthService _googleAuth;
+  final AppleAuthService _appleAuth;
   final PushNotificationService _push;
   final BillingService _billing;
 
@@ -173,6 +179,23 @@ class AppState extends ChangeNotifier {
     final idToken = await _googleAuth.signInAndGetIdToken();
     final res =
         await _api.post('/v1/auth/google', {'id_token': idToken})
+            as Map<String, dynamic>;
+    await _establishSession(res);
+  }
+
+  Future<bool> isAppleSignInAvailable() => _appleAuth.isAvailable();
+
+  Future<void> signInWithApple() async {
+    final apple = await _appleAuth.signIn();
+    final res =
+        await _api.post('/v1/auth/apple', {
+              'identity_token': apple.identityToken,
+              'nonce': apple.rawNonce,
+              if (apple.email != null && apple.email!.isNotEmpty)
+                'email': apple.email,
+              if (apple.fullName != null && apple.fullName!.isNotEmpty)
+                'full_name': apple.fullName,
+            })
             as Map<String, dynamic>;
     await _establishSession(res);
   }

@@ -24,6 +24,9 @@ type Config struct {
 	GoogleClientID string
 	// GoogleIOSClientID is the iOS OAuth client ID for native Google Sign-In.
 	GoogleIOSClientID string
+	// AppleClientID is the iOS/macOS bundle ID used as the Sign in with Apple
+	// identity token audience (e.g. com.betafeedback.app).
+	AppleClientID string
 	// MediaDir is the local directory where uploaded feedback attachments
 	// (screenshots, recordings) are stored and served from.
 	MediaDir string
@@ -55,6 +58,7 @@ func Load() (Config, error) {
 		AppBaseURL:     getenv("APP_BASE_URL", "https://betafeedback.com"),
 		GoogleClientID:          os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleIOSClientID:       os.Getenv("GOOGLE_IOS_CLIENT_ID"),
+		AppleClientID:           getenv("APPLE_CLIENT_ID", "com.betafeedback.app"),
 		MediaDir:                getenv("MEDIA_DIR", "./data/media"),
 		FirebaseCredentialsPath: os.Getenv("FIREBASE_CREDENTIALS_PATH"),
 		RevenueCatWebhookAuth:   os.Getenv("REVENUECAT_WEBHOOK_AUTH"),

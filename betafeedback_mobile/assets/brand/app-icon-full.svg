@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none" role="img" aria-label="BetaFeedback">
+  <!-- Full-bleed square for OS-masked launcher icons (no pre-rounded corners). -->
+  <rect width="1024" height="1024" fill="#1256E0"/>
+  <g transform="scale(16)">
+    <path
+      stroke="#FFFFFF"
+      stroke-width="6.75"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      d="M23 13.5
+         V46.5
+         C23 53 28.2 57 35.5 57
+         C44 57 50 51.8 50 44.5
+         C50 38 45.2 34.2 37.5 33
+         C44.8 31.5 49.5 26.8 49.5 20.5
+         C49.5 13.2 43 9.5 34.5 9.5
+         C30.2 9.5 26.2 10.6 23 12.8"
+    />
+    <path
+      fill="#FFFFFF"
+      d="M23.5 54.5
+         L14.8 47.6
+         C14 47 14 45.7 14.8 45.1
+         L23.5 38.2
+         C24.5 37.4 26 38.1 26 39.4
+         V43.2
+         H35.5
+         C36.5 43.2 37.3 44 37.3 45
+         C37.3 46 36.5 46.8 35.5 46.8
+         H26
+         V50.6
+         C26 51.9 24.5 52.6 23.5 54.5
+         Z"
+    />
+  </g>
+</svg>

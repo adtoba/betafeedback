@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+7
+version: 1.0.0+9
 
 environment:
   sdk: ^3.11.5
@@ -49,6 +49,8 @@ dependencies:
   purchases_flutter: ^10.4.1
   flutter_dotenv: ^6.0.1
   app_links: ^7.0.0
+  sign_in_with_apple: ^8.1.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +62,21 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/brand/app-icon-full.png
+  adaptive_icon_background: "#1256E0"
+  adaptive_icon_foreground: assets/brand/app-icon-full.png
+  remove_alpha_ios: true
+  background_color_ios: "#1256E0"
+  web:
+    generate: false
+  macos:
+    generate: true
+    image_path: assets/brand/app-icon-full.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -75,6 +92,7 @@ flutter:
   assets:
     - .env
     - .env.example
+    - assets/brand/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

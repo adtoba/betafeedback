@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Brand } from "./Brand";
 
 export function Footer() {
@@ -11,10 +13,12 @@ export function Footer() {
           <p className="footer__tag">Find testers. Ship cleaner builds.</p>
         </div>
         <nav className="footer__links" aria-label="Footer">
-          <a href="#how">How it works</a>
-          <a href="#features">Features</a>
-          <a href="#faq">FAQ</a>
-          <a href="mailto:hello@betafeedback.com">Contact</a>
+          <Link href="/#how">How it works</Link>
+          <Link href="/#features">Features</Link>
+          <Link href="/#faq">FAQ</Link>
+          <Link href="/contact">Contact</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </nav>
         <p className="footer__copy">© {year} BetaFeedback</p>
       </div>

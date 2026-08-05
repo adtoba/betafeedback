@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Brand } from "./Brand";
 
 export function Nav() {
@@ -6,14 +8,15 @@ export function Nav() {
       <div className="container nav__inner">
         <Brand />
         <nav className="nav__links" aria-label="Primary">
-          <a href="#how">How it works</a>
-          <a href="#features">Features</a>
-          <a href="#faq">FAQ</a>
+          <Link href="/#how">How it works</Link>
+          <Link href="/#features">Features</Link>
+          <Link href="/#faq">FAQ</Link>
+          <Link href="/#contact">Contact</Link>
         </nav>
         <div className="nav__cta">
-          <a className="btn btn--primary btn--sm" href="#download">
+          <Link className="btn btn--primary btn--sm" href="/#download">
             Get the app
-          </a>
+          </Link>
         </div>
       </div>
     </header>

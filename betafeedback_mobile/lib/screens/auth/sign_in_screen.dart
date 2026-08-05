@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_icons.dart';
 import '../../theme/app_layout.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/brand_mark.dart';
 import '../../widgets/google_logo.dart';
 
 import '../../app/app_scope.dart';
+import '../../services/apple_auth_service.dart';
 import '../../services/google_auth_service.dart';
 import 'verify_code_screen.dart';
 
@@ -19,15 +20,19 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   bool _googleLoading = false;
+  bool _appleLoading = false;
+  bool _appleAvailable = false;
 
-  void _appleComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Apple sign-in is coming soon — continue with email or Google.',
-        ),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkApple());
+  }
+
+  Future<void> _checkApple() async {
+    final available = await AppScope.of(context).isAppleSignInAvailable();
+    if (!mounted) return;
+    setState(() => _appleAvailable = available);
   }
 
   Future<void> _continueWithGoogle() async {
@@ -41,6 +46,20 @@ class _SignInScreenState extends State<SignInScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally {
       if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
+  Future<void> _continueWithApple() async {
+    setState(() => _appleLoading = true);
+    try {
+      await AppScope.of(context).signInWithApple();
+    } on AppleSignInCancelledException {
+      // User closed the Apple sheet.
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _appleLoading = false);
     }
   }
 
@@ -58,6 +77,7 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final busy = _googleLoading || _appleLoading;
 
     return Scaffold(
       body: SafeArea(
@@ -85,7 +105,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const _BrandLockup(),
+                        const BrandLockup(),
                         const SizedBox(height: AppSpace.xxl),
                         Text(
                           'Beta feedback that\nturns into fixes.',
@@ -100,18 +120,21 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                         const SizedBox(height: AppSpace.xxl),
-                        _EmailSection(onSubmit: _continueWithEmail),
+                        _EmailSection(onSubmit: busy ? null : _continueWithEmail),
                         const SizedBox(height: AppSpace.xl),
                         const LabeledRule('or'),
                         const SizedBox(height: AppSpace.lg),
                         _GoogleButton(
                           loading: _googleLoading,
-                          onPressed: _googleLoading
-                              ? null
-                              : _continueWithGoogle,
+                          onPressed: busy ? null : _continueWithGoogle,
                         ),
-                        const SizedBox(height: AppSpace.sm + 2),
-                        _AppleButton(onPressed: _appleComingSoon),
+                        if (_appleAvailable) ...[
+                          const SizedBox(height: AppSpace.sm + 2),
+                          _AppleButton(
+                            loading: _appleLoading,
+                            onPressed: busy ? null : _continueWithApple,
+                          ),
+                        ],
                         const SizedBox(height: AppSpace.xl),
                         const _LegalNote(),
                       ],
@@ -123,39 +146,6 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _BrandLockup extends StatelessWidget {
-  const _BrandLockup();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: const Icon(AppIcons.brand, color: Colors.white, size: 19),
-        ),
-        const SizedBox(width: AppSpace.md - 2),
-        Expanded(
-          child: Text(
-            'BetaFeedback',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleMedium,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -193,7 +183,8 @@ class _EmailSection extends StatefulWidget {
   const _EmailSection({required this.onSubmit});
 
   /// Called with a validated email; may throw to surface a server error.
-  final Future<void> Function(String email) onSubmit;
+  /// Null when another sign-in method is busy.
+  final Future<void> Function(String email)? onSubmit;
 
   @override
   State<_EmailSection> createState() => _EmailSectionState();
@@ -213,6 +204,8 @@ class _EmailSectionState extends State<_EmailSection> {
   static final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   Future<void> _submit() async {
+    final onSubmit = widget.onSubmit;
+    if (onSubmit == null) return;
     final email = _controller.text.trim();
     if (!_emailRegex.hasMatch(email)) {
       setState(() => _error = 'Enter a valid email address');
@@ -223,7 +216,7 @@ class _EmailSectionState extends State<_EmailSection> {
       _submitting = true;
     });
     try {
-      await widget.onSubmit(email);
+      await onSubmit(email);
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
     } finally {
@@ -233,12 +226,13 @@ class _EmailSectionState extends State<_EmailSection> {
 
   @override
   Widget build(BuildContext context) {
+    final disabled = _submitting || widget.onSubmit == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
           controller: _controller,
-          enabled: !_submitting,
+          enabled: !disabled,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.go,
           autofillHints: const [AutofillHints.email],
@@ -253,7 +247,7 @@ class _EmailSectionState extends State<_EmailSection> {
         ),
         const SizedBox(height: AppSpace.sm + 2),
         FilledButton(
-          onPressed: _submitting ? null : _submit,
+          onPressed: disabled ? null : _submit,
           child: _submitting
               ? const SizedBox(
                   height: 20,
@@ -300,9 +294,10 @@ class _GoogleButton extends StatelessWidget {
 
 /// Sign in with Apple HIG: black on light backgrounds, white on dark.
 class _AppleButton extends StatelessWidget {
-  const _AppleButton({required this.onPressed});
+  const _AppleButton({required this.onPressed, required this.loading});
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -315,10 +310,21 @@ class _AppleButton extends StatelessWidget {
       style: FilledButton.styleFrom(
         backgroundColor: background,
         foregroundColor: foreground,
+        disabledBackgroundColor: background.withValues(alpha: 0.55),
+        disabledForegroundColor: foreground.withValues(alpha: 0.7),
         shadowColor: Colors.transparent,
       ),
       child: _ButtonRow(
-        icon: Icon(Icons.apple, size: 21, color: foreground),
+        icon: loading
+            ? SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: foreground,
+                ),
+              )
+            : Icon(Icons.apple, size: 21, color: foreground),
         label: 'Continue with Apple',
       ),
     );

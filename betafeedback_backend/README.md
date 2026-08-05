@@ -68,6 +68,8 @@ are logged to stdout (useful locally with `OTP_DEBUG=true`).
 | `GET /healthz` | liveness |
 | `POST /v1/auth/email/start` | request OTP |
 | `POST /v1/auth/email/verify` | exchange OTP for JWT |
+| `POST /v1/auth/google` | exchange Google ID token for JWT |
+| `POST /v1/auth/apple` | exchange Apple identity token for JWT |
 | `GET /v1/me` | current user |
 | `GET /v1/projects` | projects the caller belongs to |
 | `POST /v1/projects` | create (caller becomes creator) |
