@@ -1,14 +1,11 @@
 [
   {
-    "relation": [
-      "delegate_permission/common.handle_all_urls"
-    ],
+    "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
       "package_name": "com.betafeedback.app",
-      "sha256_cert_fingerprints": [
-        "5F:BD:FE:75:A8:33:42:66:3A:B5:01:48:C0:A1:DC:05:28:CE:0C:29:2E:EC:1C:F1:75:79:E5:DD:0F:2A:CC:E5"
-      ]
+      "sha256_cert_fingerprints":
+        ["58:E3:EA:44:6A:6F:E6:3F:F5:97:32:E3:1D:67:08:89:BF:FE:25:04:04:1D:64:F2:FF:AD:80:F3:9E:DC:15:3A"]
     }
   }
 ]
