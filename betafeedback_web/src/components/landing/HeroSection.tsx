@@ -14,10 +14,10 @@ export function HeroSection() {
         />
 
         <div className="hero__center">
-          <p className="hero__signal">
+          {/* <p className="hero__signal">
             <span className="hero__signal-dot" aria-hidden="true" />
             Open to test · Test-for-test swaps · AI bug drafts
-          </p>
+          </p> */}
           <h1>
             feedback in.
             <br />
