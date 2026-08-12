@@ -30,9 +30,10 @@ import 'find_testers_screen.dart';
 import 'new_feedback_screen.dart';
 import 'post_release_sheet.dart';
 import 'test_plan_screen.dart';
+import 'test_build_android_screen.dart';
+import 'test_build_ios_screen.dart';
 import '../widgets/rate_tester_sheet.dart';
 import '../widgets/android_beta_install_sheet.dart';
-import '../widgets/edit_distribution_sheet.dart';
 import '../utils/android_beta_install.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
@@ -168,7 +169,26 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                           'feedback',
                         );
                       case 'android_testing':
-                        showEditDistributionSheet(context, project: project);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => TestBuildAndroidScreen(
+                              project: project,
+                              userEmail: appState.currentUser.email,
+                              isCreator: isCreator,
+                              isTester: isTester,
+                            ),
+                          ),
+                        );
+                      case 'ios_testing':
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => TestBuildIosScreen(
+                              project: project,
+                              isCreator: isCreator,
+                              isTester: isTester,
+                            ),
+                          ),
+                        );
                     }
                   },
                   itemBuilder: (context) => [
@@ -192,6 +212,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                         child: _MenuRow(
                           icon: AppIcons.platformAndroid,
                           label: 'Android closed testing',
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'ios_testing',
+                        child: _MenuRow(
+                          icon: AppIcons.platformIos,
+                          label: 'iOS TestFlight',
                         ),
                       ),
                     ],
@@ -572,6 +599,13 @@ class _ProjectHeader extends StatelessWidget {
         .length;
     final activityCount = appState.activityForProject(project.id).length;
     final links = _links;
+    final showAndroidTile =
+        isCreator || (isTester && projectHasAndroidBetaInstall(project));
+    final iosUrl = project.platformLinks
+        .where((l) => l.platform == 'ios' && l.url.trim().isNotEmpty)
+        .map((l) => l.url.trim())
+        .firstOrNull;
+    final showIosTile = isCreator || (isTester && iosUrl != null);
     final theme = Theme.of(context);
     final tones = AppTones.of(context);
     final reportCount = project.feedback
@@ -613,44 +647,85 @@ class _ProjectHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpace.xxl),
-        if (links.isNotEmpty) ...[
+        if (links.isNotEmpty || showAndroidTile || showIosTile) ...[
           GroupedSection(
             header: 'Test builds',
             children: [
               for (final link in links)
-                _CompactLinkRow(
-                  icon: link.icon,
-                  label: link.label,
-                  url: link.url,
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpace.xxl),
-        ],
-        if (isCreator || (isTester && projectHasAndroidBetaInstall(project))) ...[
-          GroupedSection(
-            header: 'Android beta',
-            children: [
-              if (isCreator)
+                if (link.label == 'Android' && showAndroidTile)
+                  GroupedListTile(
+                    icon: link.icon,
+                    title: 'Android',
+                    subtitle: isCreator
+                        ? 'Closed testing setup'
+                        : 'Install checklist',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TestBuildAndroidScreen(
+                          project: project,
+                          userEmail: appState.currentUser.email,
+                          isCreator: isCreator,
+                          isTester: isTester,
+                        ),
+                      ),
+                    ),
+                  )
+                else if (link.label == 'iOS' && showIosTile)
+                  GroupedListTile(
+                    icon: link.icon,
+                    title: 'iOS',
+                    subtitle: isCreator
+                        ? 'TestFlight distribution'
+                        : 'Install checklist',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TestBuildIosScreen(
+                          project: project,
+                          isCreator: isCreator,
+                          isTester: isTester,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  _CompactLinkRow(
+                    icon: link.icon,
+                    label: link.label,
+                    url: link.url,
+                  ),
+              if (showAndroidTile && !links.any((l) => l.label == 'Android'))
                 GroupedListTile(
                   icon: AppIcons.platformAndroid,
-                  title: 'Closed testing setup',
-                  subtitle: 'Play link and Google Group',
-                  onTap: () => showEditDistributionSheet(
-                    context,
-                    project: project,
+                  title: 'Android',
+                  subtitle: isCreator
+                      ? 'Closed testing setup'
+                      : 'Install checklist',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TestBuildAndroidScreen(
+                        project: project,
+                        userEmail: appState.currentUser.email,
+                        isCreator: isCreator,
+                        isTester: isTester,
+                      ),
+                    ),
                   ),
                 ),
-              if (isTester && projectHasAndroidBetaInstall(project))
+              if (showIosTile && !links.any((l) => l.label == 'iOS'))
                 GroupedListTile(
-                  icon: AppIcons.download,
-                  title: 'Install Android beta',
-                  subtitle: 'Group + Play checklist',
-                  onTap: () => showAndroidBetaInstallSheet(
-                    context,
-                    project: project,
-                    userEmail: appState.currentUser.email,
-                    force: true,
+                  icon: AppIcons.platformIos,
+                  title: 'iOS',
+                  subtitle: isCreator
+                      ? 'TestFlight distribution'
+                      : 'Install checklist',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TestBuildIosScreen(
+                        project: project,
+                        isCreator: isCreator,
+                        isTester: isTester,
+                      ),
+                    ),
                   ),
                 ),
             ],

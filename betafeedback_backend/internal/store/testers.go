@@ -11,6 +11,10 @@ import (
 	"github.com/adetoba/betafeedback_backend/internal/model"
 )
 
+func normalizeMarketplaceQuery(query string) string {
+	return strings.ToLower(strings.TrimSpace(query))
+}
+
 // ListOpenTesters returns users who opted into the tester marketplace.
 // When projectID is set, flags already-member and pending-invite state and
 // excludes the project's creator from results.
@@ -18,7 +22,7 @@ func (s *Store) ListOpenTesters(ctx context.Context, viewerID, projectID, query 
 	if limit <= 0 || limit > 100 {
 		limit = 40
 	}
-	q := strings.TrimSpace(query)
+	q := normalizeMarketplaceQuery(query)
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT
@@ -45,12 +49,25 @@ func (s *Store) ListOpenTesters(ctx context.Context, viewerID, projectID, query 
 		LEFT JOIN tester_ratings r ON r.tester_id = u.id
 		WHERE u.open_to_test = true
 		  AND u.id <> $1
-		  AND ($3 = '' OR u.name ILIKE '%' || $3 || '%'
-		       OR u.email ILIKE '%' || $3 || '%'
-		       OR u.tester_bio ILIKE '%' || $3 || '%')
+		  AND ($3 = '' OR (
+		       CASE WHEN position('@' in $3) > 0
+		            THEN u.email LIKE '%' || $3 || '%'
+		            ELSE u.name ILIKE '%' || $3 || '%'
+		                 OR u.email LIKE '%' || $3 || '%'
+		                 OR u.tester_bio ILIKE '%' || $3 || '%'
+		       END
+		  ))
 		  AND ($2::uuid IS NULL OR u.id <> (SELECT creator_id FROM projects WHERE id = $2))
 		GROUP BY u.id
-		ORDER BY rating_avg DESC NULLS LAST, rating_count DESC, completed_count DESC, u.name ASC
+		ORDER BY
+		  CASE WHEN $3 = '' THEN 0
+		       WHEN u.email = $3 THEN 1
+		       WHEN u.email LIKE $3 || '%' THEN 2
+		       WHEN u.email LIKE '%' || $3 || '%' THEN 3
+		       WHEN u.name ILIKE '%' || $3 || '%' THEN 4
+		       WHEN u.tester_bio ILIKE '%' || $3 || '%' THEN 5
+		       ELSE 6 END,
+		  rating_avg DESC NULLS LAST, rating_count DESC, completed_count DESC, u.email ASC
 		LIMIT $4
 	`, viewerID, nullUUID(projectID), q, limit)
 	if err != nil {

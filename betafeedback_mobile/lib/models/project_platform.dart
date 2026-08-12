@@ -24,7 +24,7 @@ const List<ProjectPlatform> kProjectPlatforms = [
     id: 'ios',
     label: 'iOS',
     icon: AppIcons.platformIos,
-    hint: 'TestFlight or App Store link',
+    hint: 'https://testflight.apple.com/join/…',
   ),
   ProjectPlatform(
     id: 'android',

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -57,7 +56,7 @@ func (s *Store) ListSwapPartners(ctx context.Context, viewerID, projectID, query
 	if limit <= 0 || limit > 100 {
 		limit = 40
 	}
-	q := strings.TrimSpace(query)
+	q := normalizeMarketplaceQuery(query)
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT
@@ -81,15 +80,28 @@ func (s *Store) ListSwapPartners(ctx context.Context, viewerID, projectID, query
 		WHERE u.open_to_swap = true
 		  AND u.id <> $1
 		  AND EXISTS (SELECT 1 FROM projects p WHERE p.creator_id = u.id)
-		  AND ($3 = '' OR u.name ILIKE '%' || $3 || '%'
-		       OR u.email ILIKE '%' || $3 || '%'
-		       OR u.tester_bio ILIKE '%' || $3 || '%')
+		  AND ($3 = '' OR (
+		       CASE WHEN position('@' in $3) > 0
+		            THEN u.email LIKE '%' || $3 || '%'
+		            ELSE u.name ILIKE '%' || $3 || '%'
+		                 OR u.email LIKE '%' || $3 || '%'
+		                 OR u.tester_bio ILIKE '%' || $3 || '%'
+		       END
+		  ))
 		  AND ($2::uuid IS NULL OR NOT EXISTS (
 		        SELECT 1 FROM project_members pm
 		        WHERE pm.project_id = $2 AND pm.user_id = u.id
 		      ))
 		GROUP BY u.id
-		ORDER BY rating_avg DESC NULLS LAST, rating_count DESC, u.name ASC
+		ORDER BY
+		  CASE WHEN $3 = '' THEN 0
+		       WHEN u.email = $3 THEN 1
+		       WHEN u.email LIKE $3 || '%' THEN 2
+		       WHEN u.email LIKE '%' || $3 || '%' THEN 3
+		       WHEN u.name ILIKE '%' || $3 || '%' THEN 4
+		       WHEN u.tester_bio ILIKE '%' || $3 || '%' THEN 5
+		       ELSE 6 END,
+		  rating_avg DESC NULLS LAST, rating_count DESC, u.email ASC
 		LIMIT $4
 	`, viewerID, nullUUID(projectID), q, limit)
 	if err != nil {

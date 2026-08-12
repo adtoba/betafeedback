@@ -11,6 +11,7 @@ import '../models/test_item.dart';
 import '../models/tester.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
+import '../services/api_config.dart';
 import '../services/apple_auth_service.dart';
 import '../services/billing_service.dart';
 import '../services/google_auth_service.dart';
@@ -27,7 +28,7 @@ class AppState extends ChangeNotifier {
     PushNotificationService? push,
     BillingService? billing,
   }) : this._withApi(
-         api ?? ApiClient(baseUrl: 'https://api.betafeedback.com'),
+         api ?? ApiClient(baseUrl: ApiConfig.baseUrl),
          googleAuth,
          appleAuth,
          push,
@@ -270,6 +271,7 @@ class AppState extends ChangeNotifier {
       _subscription?.projectsCreated ?? myProjects.length;
 
   bool get isPro {
+    if (ApiConfig.bypassSubscriptionGates) return true;
     final sub = currentSubscription;
     if (sub.plan != SubscriptionPlan.pro) return false;
     return sub.status == SubscriptionStatus.active ||
@@ -278,6 +280,7 @@ class AppState extends ChangeNotifier {
   }
 
   bool get canCreateMoreProjects {
+    if (ApiConfig.bypassSubscriptionGates) return true;
     final limit = currentSubscription.projectLimit;
     if (limit == null) return true;
     return projectsCreatedByCurrentUser < limit;
@@ -841,9 +844,10 @@ class AppState extends ChangeNotifier {
     String? projectId,
     String query = '',
   }) async {
+    final q = query.trim().toLowerCase();
     final params = <String, String>{
       if (projectId != null && projectId.isNotEmpty) 'project_id': projectId,
-      if (query.trim().isNotEmpty) 'q': query.trim(),
+      if (q.isNotEmpty) 'q': q,
     };
     final qs = params.entries
         .map((e) => '${Uri.encodeQueryComponent(e.key)}='
@@ -942,9 +946,10 @@ class AppState extends ChangeNotifier {
     String? projectId,
     String query = '',
   }) async {
+    final q = query.trim().toLowerCase();
     final params = <String, String>{
       if (projectId != null && projectId.isNotEmpty) 'project_id': projectId,
-      if (query.trim().isNotEmpty) 'q': query.trim(),
+      if (q.isNotEmpty) 'q': q,
     };
     final qs = params.entries
         .map((e) => '${Uri.encodeQueryComponent(e.key)}='

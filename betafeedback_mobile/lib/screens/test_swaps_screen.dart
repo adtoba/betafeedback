@@ -7,6 +7,7 @@ import '../theme/app_layout.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/grouped_list.dart';
 import '../widgets/plan_picker_sheet.dart';
 import '../widgets/project_logo.dart';
 import '../widgets/status_pill.dart';
@@ -149,7 +150,7 @@ class _TestSwapsScreenState extends State<TestSwapsScreen> {
             .toList();
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Test-for-test')),
+          appBar: AppBar(title: const Text('Swaps')),
           body: AppLayout.adaptiveBody(
             context,
             _loading
@@ -159,15 +160,18 @@ class _TestSwapsScreenState extends State<TestSwapsScreen> {
                     icon: AppIcons.error,
                     title: 'Couldn\'t load swaps',
                     message: _error!,
-                    action: TextButton(onPressed: _refresh, child: const Text('Retry')),
+                    action: TextButton(
+                      onPressed: _refresh,
+                      child: const Text('Retry'),
+                    ),
                   )
                 : swaps.isEmpty
                 ? const AppEmptyState(
                     icon: AppIcons.repeat,
                     title: 'No swaps yet',
                     message:
-                        'Propose a test-for-test from find testers. You join '
-                        'their project, they join yours.',
+                        'Propose a test-for-test from Recruit. You join their '
+                        'project, they join yours.',
                   )
                 : RefreshIndicator(
                     onRefresh: _refresh,
@@ -178,55 +182,68 @@ class _TestSwapsScreenState extends State<TestSwapsScreen> {
                       ),
                       children: [
                         if (incoming.isNotEmpty) ...[
-                          _SectionHeader(title: 'Incoming'),
-                          for (final swap in incoming)
-                            _SwapCard(
-                              swap: swap,
-                              meId: me,
-                              busy: _busy.contains(swap.id),
-                              onAccept: () => _accept(swap),
-                              onDecline: () => _decline(swap),
-                              onOpenTheirs: () =>
-                                  _openProject(swap.fromProjectId),
-                              onOpenYours: () =>
-                                  _openProject(swap.toProjectId),
-                            ),
+                          GroupedSection(
+                            header: 'Incoming',
+                            footer: 'Accept to join their project and add them '
+                                'as a tester on yours.',
+                            children: [
+                              for (final swap in incoming)
+                                _SwapExchangeRow(
+                                  swap: swap,
+                                  meId: me,
+                                  busy: _busy.contains(swap.id),
+                                  onAccept: () => _accept(swap),
+                                  onDecline: () => _decline(swap),
+                                  onOpenTheirs: () =>
+                                      _openProject(swap.fromProjectId),
+                                  onOpenYours: () =>
+                                      _openProject(swap.toProjectId),
+                                ),
+                            ],
+                          ),
                           const SizedBox(height: AppSpace.xl),
                         ],
                         if (outgoing.isNotEmpty) ...[
-                          _SectionHeader(title: 'Outgoing'),
-                          for (final swap in outgoing)
-                            _SwapCard(
-                              swap: swap,
-                              meId: me,
-                              busy: _busy.contains(swap.id),
-                              onCancel: () => _cancel(swap),
-                              onOpenTheirs: () =>
-                                  _openProject(swap.toProjectId),
-                              onOpenYours: () =>
-                                  _openProject(swap.fromProjectId),
-                            ),
+                          GroupedSection(
+                            header: 'Outgoing',
+                            children: [
+                              for (final swap in outgoing)
+                                _SwapExchangeRow(
+                                  swap: swap,
+                                  meId: me,
+                                  busy: _busy.contains(swap.id),
+                                  onCancel: () => _cancel(swap),
+                                  onOpenTheirs: () =>
+                                      _openProject(swap.toProjectId),
+                                  onOpenYours: () =>
+                                      _openProject(swap.fromProjectId),
+                                ),
+                            ],
+                          ),
                           const SizedBox(height: AppSpace.xl),
                         ],
-                        if (active.isNotEmpty) ...[
-                          _SectionHeader(title: 'Active'),
-                          for (final swap in active)
-                            _SwapCard(
-                              swap: swap,
-                              meId: me,
-                              busy: false,
-                              onOpenTheirs: () => _openProject(
-                                swap.fromUserId == me
-                                    ? swap.toProjectId
-                                    : swap.fromProjectId,
-                              ),
-                              onOpenYours: () => _openProject(
-                                swap.fromUserId == me
-                                    ? swap.fromProjectId
-                                    : swap.toProjectId,
-                              ),
-                            ),
-                        ],
+                        if (active.isNotEmpty)
+                          GroupedSection(
+                            header: 'Active',
+                            children: [
+                              for (final swap in active)
+                                _SwapExchangeRow(
+                                  swap: swap,
+                                  meId: me,
+                                  busy: false,
+                                  onOpenTheirs: () => _openProject(
+                                    swap.fromUserId == me
+                                        ? swap.toProjectId
+                                        : swap.fromProjectId,
+                                  ),
+                                  onOpenYours: () => _openProject(
+                                    swap.fromUserId == me
+                                        ? swap.fromProjectId
+                                        : swap.toProjectId,
+                                  ),
+                                ),
+                            ],
+                          ),
                       ],
                     ),
                   ),
@@ -237,27 +254,8 @@ class _TestSwapsScreenState extends State<TestSwapsScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpace.gutter + AppSpace.xs,
-        0,
-        AppSpace.gutter,
-        AppSpace.sm,
-      ),
-      child: Text(title.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
-    );
-  }
-}
-
-class _SwapCard extends StatelessWidget {
-  const _SwapCard({
+class _SwapExchangeRow extends StatelessWidget {
+  const _SwapExchangeRow({
     required this.swap,
     required this.meId,
     required this.busy,
@@ -293,174 +291,191 @@ class _SwapCard extends StatelessWidget {
         iAmRecipient ? swap.fromProjectLogoUrl : swap.toProjectLogoUrl;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpace.gutter,
-        0,
-        AppSpace.gutter,
-        AppSpace.md,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md + 2,
+        vertical: AppSpace.md,
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: tones.hairline, width: AppStroke.hairline),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpace.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      partnerName.isEmpty ? 'Partner' : partnerName,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                  ),
-                  StatusPill(
-                    label: testSwapStatusLabel(swap.status),
-                    color: switch (swap.status) {
-                      TestSwapStatus.pending => scheme.primary,
-                      TestSwapStatus.accepted => scheme.tertiary,
-                      TestSwapStatus.fulfilled => scheme.tertiary,
-                      TestSwapStatus.declined => scheme.error,
-                      TestSwapStatus.cancelled => scheme.onSurfaceVariant,
-                    },
-                  ),
-                ],
+              Expanded(
+                child: Text(
+                  partnerName.isEmpty ? 'Creator' : partnerName,
+                  style: theme.textTheme.bodyLarge,
+                ),
               ),
-              const SizedBox(height: AppSpace.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ProjectChip(
-                      name: theirProject,
-                      logoUrl: theirLogo,
-                      caption: 'You test',
-                      onTap: onOpenTheirs,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
-                    child: Icon(
-                      AppIcons.repeat,
-                      size: 16,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Expanded(
-                    child: _ProjectChip(
-                      name: myProject,
-                      logoUrl: myLogo,
-                      caption: 'They test',
-                      onTap: onOpenYours,
-                    ),
-                  ),
-                ],
+              StatusPill(
+                label: testSwapStatusLabel(swap.status),
+                color: switch (swap.status) {
+                  TestSwapStatus.pending => scheme.primary,
+                  TestSwapStatus.accepted => scheme.tertiary,
+                  TestSwapStatus.fulfilled => scheme.tertiary,
+                  TestSwapStatus.declined => scheme.error,
+                  TestSwapStatus.cancelled => scheme.onSurfaceVariant,
+                },
               ),
-              if (swap.message.isNotEmpty) ...[
-                const SizedBox(height: AppSpace.md),
-                Text(swap.message, style: theme.textTheme.bodySmall),
-              ],
-              if (onAccept != null || onDecline != null || onCancel != null) ...[
-                const SizedBox(height: AppSpace.lg),
-                if (busy)
-                  const Center(
-                    child: SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                else
-                  Row(
-                    children: [
-                      if (onDecline != null)
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: onDecline,
-                            child: const Text('Decline'),
-                          ),
-                        ),
-                      if (onDecline != null && onAccept != null)
-                        const SizedBox(width: AppSpace.sm),
-                      if (onAccept != null)
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: onAccept,
-                            child: const Text('Accept'),
-                          ),
-                        ),
-                      if (onCancel != null)
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: onCancel,
-                            child: const Text('Cancel'),
-                          ),
-                        ),
-                    ],
-                  ),
-              ],
             ],
           ),
-        ),
+          const SizedBox(height: AppSpace.md),
+          _ProjectLine(
+            caption: 'You test',
+            name: theirProject,
+            logoUrl: theirLogo,
+            onTap: onOpenTheirs,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 18, top: AppSpace.xs),
+            child: Column(
+              children: [
+                Container(
+                  width: AppStroke.hairline,
+                  height: 8,
+                  color: tones.hairline,
+                ),
+                Transform.rotate(
+                  angle: 1.5708,
+                  child: Icon(
+                    AppIcons.arrowRight,
+                    size: 14,
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
+                  ),
+                ),
+                Container(
+                  width: AppStroke.hairline,
+                  height: 8,
+                  color: tones.hairline,
+                ),
+              ],
+            ),
+          ),
+          _ProjectLine(
+            caption: 'They test',
+            name: myProject,
+            logoUrl: myLogo,
+            onTap: onOpenYours,
+          ),
+          if (swap.message.isNotEmpty) ...[
+            const SizedBox(height: AppSpace.md),
+            Text(
+              swap.message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          if (onAccept != null || onDecline != null || onCancel != null) ...[
+            const SizedBox(height: AppSpace.lg),
+            if (busy)
+              const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else
+              Row(
+                children: [
+                  if (onDecline != null)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onDecline,
+                        child: const Text('Decline'),
+                      ),
+                    ),
+                  if (onDecline != null && onAccept != null)
+                    const SizedBox(width: AppSpace.sm),
+                  if (onAccept != null)
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: onAccept,
+                        child: const Text('Accept'),
+                      ),
+                    ),
+                  if (onCancel != null)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onCancel,
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _ProjectChip extends StatelessWidget {
-  const _ProjectChip({
+class _ProjectLine extends StatelessWidget {
+  const _ProjectLine({
+    required this.caption,
     required this.name,
     this.logoUrl,
-    required this.caption,
     this.onTap,
   });
 
+  final String caption;
   final String name;
   final String? logoUrl;
-  final String caption;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            caption,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+    final scheme = theme.colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpace.xs,
+            horizontal: AppSpace.xxs,
           ),
-          const SizedBox(height: AppSpace.lg),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Row(
             children: [
               ProjectLogo(
                 projectName: name,
                 logoUrl: logoUrl,
-                size: 28,
-                borderRadius: 7,
+                size: 32,
+                borderRadius: 8,
               ),
-              const SizedBox(width: AppSpace.sm),
-              Text(
-                name,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium,
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      caption.toUpperCase(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.xxs),
+                    Text(
+                      name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ],
+                ),
               ),
+              if (onTap != null)
+                Icon(
+                  AppIcons.chevronRight,
+                  size: 18,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
+                ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

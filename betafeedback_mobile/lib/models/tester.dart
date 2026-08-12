@@ -25,6 +25,29 @@ class TesterProfile {
 
   bool get canInvite => !alreadyMember && !invitePending;
 
+  /// Email is the reliable identifier — name is often unset at signup.
+  String get displayLabel {
+    final e = email.trim();
+    if (e.isNotEmpty) return e;
+    final n = name.trim();
+    if (n.isNotEmpty) return n;
+    return 'Tester';
+  }
+
+  String get marketplaceSubtitle {
+    final b = bio.trim();
+    if (b.isNotEmpty) return b;
+    return 'Tester';
+  }
+
+  static int compareByRating(TesterProfile a, TesterProfile b) {
+    final avg = b.ratingAvg.compareTo(a.ratingAvg);
+    if (avg != 0) return avg;
+    final count = b.ratingCount.compareTo(a.ratingCount);
+    if (count != 0) return count;
+    return b.completedCount.compareTo(a.completedCount);
+  }
+
   String get ratingLabel {
     if (ratingCount == 0) return 'New tester';
     return '${ratingAvg.toStringAsFixed(1)} · $ratingCount '
@@ -219,6 +242,30 @@ class SwapPartner {
   final bool swapPending;
 
   bool get canPropose => !swapPending && projects.isNotEmpty;
+
+  String get displayLabel {
+    final e = email.trim();
+    if (e.isNotEmpty) return e;
+    final n = name.trim();
+    if (n.isNotEmpty) return n;
+    return 'Creator';
+  }
+
+  String get marketplaceSubtitle {
+    final parts = <String>[ratingLabel];
+    final b = bio.trim();
+    if (b.isNotEmpty) parts.add(b);
+    if (projects.isNotEmpty) {
+      parts.add(projects.map((p) => p.name).join(', '));
+    }
+    return parts.join(' · ');
+  }
+
+  static int compareByRating(SwapPartner a, SwapPartner b) {
+    final avg = b.ratingAvg.compareTo(a.ratingAvg);
+    if (avg != 0) return avg;
+    return b.ratingCount.compareTo(a.ratingCount);
+  }
 
   String get ratingLabel {
     if (ratingCount == 0) return 'New partner';

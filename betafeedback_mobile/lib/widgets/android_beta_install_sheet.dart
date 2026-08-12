@@ -130,6 +130,32 @@ class _AndroidBetaInstallSheet extends StatelessWidget {
   }
 }
 
+/// Full reusable checklist content for Android closed testing.
+///
+/// This used to live only inside a bottom sheet, but we also render it as a
+/// full page from the "Test build Android" option.
+class AndroidBetaInstallChecklist extends StatelessWidget {
+  const AndroidBetaInstallChecklist({
+    super.key,
+    required this.project,
+    required this.userEmail,
+    required this.onDone,
+  });
+
+  final Project project;
+  final String userEmail;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    return _AndroidBetaInstallSheet(
+      project: project,
+      userEmail: userEmail,
+      onDone: onDone,
+    );
+  }
+}
+
 class _StepTile extends StatelessWidget {
   const _StepTile({
     required this.number,

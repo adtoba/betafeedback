@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -73,9 +75,9 @@ class GoogleAuthService {
     _googleSignIn = GoogleSignIn(
       scopes: const ['email', 'profile'],
       serverClientId: webClientId,
-      // clientId: !kIsWeb && Platform.isIOS && iosClientId.isNotEmpty
-      //     ? iosClientId
-      //     : null,
+      clientId: !kIsWeb && Platform.isIOS && iosClientId.isNotEmpty
+          ? iosClientId
+          : null,
     );
     return _googleSignIn!;
   }

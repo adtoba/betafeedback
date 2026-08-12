@@ -4,11 +4,11 @@ import '../app/app_scope.dart';
 import '../models/tester.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_layout.dart';
-import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
-import '../widgets/app_header.dart';
 import '../widgets/empty_state.dart';
-import '../widgets/metric_strip.dart';
+import '../widgets/grouped_list.dart';
+import '../widgets/marketplace_mode_switch.dart';
+import '../widgets/marketplace_person.dart';
 import '../widgets/plan_picker_sheet.dart';
 import '../widgets/status_pill.dart';
 
@@ -29,12 +29,10 @@ class FindTestersScreen extends StatefulWidget {
   State<FindTestersScreen> createState() => _FindTestersScreenState();
 }
 
-class _FindTestersScreenState extends State<FindTestersScreen>
-    with SingleTickerProviderStateMixin {
+class _FindTestersScreenState extends State<FindTestersScreen> {
   final _search = TextEditingController();
-  late final TabController _tabs;
+  int _modeIndex = 0;
   List<TesterProfile> _testers = [];
-  List<TesterProfile> _top = [];
   List<SwapPartner> _partners = [];
   bool _loading = true;
   String? _error;
@@ -46,17 +44,12 @@ class _FindTestersScreenState extends State<FindTestersScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
-    _tabs.addListener(() {
-      if (!_tabs.indexIsChanging) setState(() {});
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   @override
   void dispose() {
     _search.dispose();
-    _tabs.dispose();
     super.dispose();
   }
 
@@ -72,7 +65,6 @@ class _FindTestersScreenState extends State<FindTestersScreen>
           projectId: widget.projectId,
           query: _search.text,
         ),
-        appState.loadTopTesters(),
         appState.loadSwapPartners(
           projectId: widget.projectId,
           query: _search.text,
@@ -80,9 +72,10 @@ class _FindTestersScreenState extends State<FindTestersScreen>
       ]);
       if (!mounted) return;
       setState(() {
-        _testers = results[0] as List<TesterProfile>;
-        _top = results[1] as List<TesterProfile>;
-        _partners = results[2] as List<SwapPartner>;
+        _testers = List<TesterProfile>.from(results[0] as List<TesterProfile>)
+          ..sort(TesterProfile.compareByRating);
+        _partners = List<SwapPartner>.from(results[1] as List<SwapPartner>)
+          ..sort(SwapPartner.compareByRating);
         _loading = false;
       });
     } catch (e) {
@@ -136,14 +129,10 @@ class _FindTestersScreenState extends State<FindTestersScreen>
           for (final t in _testers)
             if (t.id == tester.id) t.copyWith(invitePending: true) else t,
         ];
-        _top = [
-          for (final t in _top)
-            if (t.id == tester.id) t.copyWith(invitePending: true) else t,
-        ];
       });
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Invite sent to ${tester.name}'),
+          content: Text('Invite sent to ${tester.displayLabel}'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -188,7 +177,7 @@ class _FindTestersScreenState extends State<FindTestersScreen>
                   AppSpace.md,
                 ),
                 child: Text(
-                  'Which of ${partner.name}\'s projects will you test?',
+                  'Which of ${partner.displayLabel}\'s projects will you test?',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -210,7 +199,7 @@ class _FindTestersScreenState extends State<FindTestersScreen>
       builder: (dialogContext) => AlertDialog(
         title: const Text('Propose test-for-test?'),
         content: Text(
-          'You\'ll invite ${partner.name} to test your project, and you\'ll '
+          'You\'ll invite ${partner.displayLabel} to test your project, and you\'ll '
           'join ${theirProject!.name} as a tester when they accept.',
         ),
         actions: [
@@ -245,7 +234,7 @@ class _FindTestersScreenState extends State<FindTestersScreen>
       });
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Swap proposed to ${partner.name}'),
+          content: Text('Swap proposed to ${partner.displayLabel}'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -258,14 +247,35 @@ class _FindTestersScreenState extends State<FindTestersScreen>
     }
   }
 
+  Widget? _testerTrailing(TesterProfile tester, bool inviting) {
+    if (inviting) {
+      return const SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    final scheme = Theme.of(context).colorScheme;
+    if (tester.alreadyMember) {
+      return StatusPill(label: 'Joined', color: scheme.onSurfaceVariant);
+    }
+    if (tester.invitePending) {
+      return StatusPill(label: 'Invited', color: scheme.primary);
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final onSwaps = _tabs.index == 1;
+    final onSwaps = _modeIndex == 1;
+    final headline = onSwaps
+        ? 'Trade coverage with another creator'
+        : 'Invite people open to testing';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(onSwaps ? 'Test-for-test' : 'Find testers'),
+        title: const Text('Recruit'),
         actions: [
           if (widget.showSkip)
             TextButton(
@@ -273,13 +283,6 @@ class _FindTestersScreenState extends State<FindTestersScreen>
               child: const Text('Skip'),
             ),
         ],
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: const [
-            Tab(text: 'Invite'),
-            Tab(text: 'Swap'),
-          ],
-        ),
       ),
       body: AppLayout.adaptiveBody(
         context,
@@ -291,48 +294,34 @@ class _FindTestersScreenState extends State<FindTestersScreen>
                 AppSpace.gutter,
                 AppSpace.sm,
                 AppSpace.gutter,
-                AppSpace.md,
+                AppSpace.xxl,
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Text(title, style: theme.textTheme.titleMedium),
+                  // if (widget.projectName.isNotEmpty) ...[
+                  //   Text(
+                  //     widget.projectName.toUpperCase(),
+                  //     style: theme.textTheme.labelSmall,
+                  //   ),
+                  //   const SizedBox(height: AppSpace.xs),
+                  // ],
+                  // Text(headline, style: theme.textTheme.titleMedium),
                   const SizedBox(height: AppSpace.lg),
-                  Text(
-                    onSwaps
-                        ? 'Propose a swap with creators who also need testers. '
-                              'You join theirs, they join yours.'
-                        : 'Invite people who are open to testing apps on BetaFeedback.',
-                    style: theme.textTheme.bodySmall,
+                  MarketplaceModeSwitch(
+                    index: _modeIndex,
+                    onChanged: (i) => setState(() => _modeIndex = i),
                   ),
-                  const SizedBox(height: AppSpace.lg),
-                  TextField(
+                  const SizedBox(height: AppSpace.xl),
+                  MarketplaceSearchField(
                     controller: _search,
-                    textInputAction: TextInputAction.search,
-                    keyboardType: TextInputType.emailAddress,
-                    autocorrect: false,
-                    onSubmitted: (_) => _load(),
-                    decoration: InputDecoration(
-                      hintText: 'Search by name or email',
-                      prefixIcon: const Icon(AppIcons.search, size: 20),
-                      suffixIcon: IconButton(
-                        tooltip: 'Search',
-                        onPressed: _load,
-                        icon: const Icon(AppIcons.arrowRight, size: 20),
-                      ),
-                    ),
+                    onSearch: _load,
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: TabBarView(
-                controller: _tabs,
-                children: [
-                  _inviteBody(theme),
-                  _swapBody(theme),
-                ],
-              ),
+              child: onSwaps ? _swapBody() : _inviteBody(),
             ),
           ],
         ),
@@ -340,11 +329,86 @@ class _FindTestersScreenState extends State<FindTestersScreen>
     );
   }
 
-  Widget _inviteBody(ThemeData theme) {
-    return _body(theme);
+  Widget? _partnerTrailing(
+    SwapPartner partner,
+    bool proposing,
+    bool pending,
+  ) {
+    if (proposing) {
+      return const SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    final scheme = Theme.of(context).colorScheme;
+    if (partner.canPropose && !pending) {
+      return TextButton(
+        onPressed: () => _proposeSwap(partner),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+        ),
+        child: const Text('Propose'),
+      );
+    }
+    return StatusPill(
+      label: pending ? 'Proposed' : 'Unavailable',
+      color: scheme.onSurfaceVariant,
+    );
   }
 
-  Widget _swapBody(ThemeData theme) {
+  Widget _inviteBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return AppErrorState(
+        icon: AppIcons.cloudOff,
+        title: 'Couldn\'t load testers',
+        message: _error!,
+        onRetry: _load,
+      );
+    }
+    if (_testers.isEmpty) {
+      final querying = _search.text.trim().isNotEmpty;
+      return AppEmptyState(
+        icon: AppIcons.people,
+        title: querying ? 'No matches' : 'No testers yet',
+        message: querying
+            ? 'No opted-in testers match that email.'
+            : 'When people opt in on their profile, they\'ll show up here. '
+                  'You can still invite by email from the project.',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: AppSpace.xxxl),
+        children: [
+          GroupedSection(
+            header: _search.text.trim().isEmpty ? 'Open to test' : 'Results',
+            children: [
+              for (final tester in _testers)
+                MarketplacePersonRow(
+                  name: tester.displayLabel,
+                  hue: tester.avatarHue,
+                  subtitle: tester.marketplaceSubtitle,
+                  trailing: _testerTrailing(
+                    _withLocalInviteState(tester),
+                    _inviting.contains(tester.id),
+                  ),
+                  onTap: () => _showTester(tester),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _swapBody() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -370,95 +434,31 @@ class _FindTestersScreenState extends State<FindTestersScreen>
 
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.gutter,
-          0,
-          AppSpace.gutter,
-          AppSpace.xxxl,
-        ),
-        itemCount: _partners.length,
-        separatorBuilder: (context, index) => const SizedBox(height: AppSpace.sm),
-        itemBuilder: (context, index) {
-          final partner = _partners[index];
-          final pending =
-              partner.swapPending || _proposed.contains(partner.id);
-          final proposing = _proposing.contains(partner.id);
-          return _PartnerTile(
-            partner: partner,
-            pending: pending,
-            proposing: proposing,
-            onPropose: partner.canPropose && !pending
-                ? () => _proposeSwap(partner)
-                : null,
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _body(ThemeData theme) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return AppErrorState(
-        icon: AppIcons.cloudOff,
-        title: 'Couldn\'t load testers',
-        message: _error!,
-        onRetry: _load,
-      );
-    }
-    if (_testers.isEmpty) {
-      final querying = _search.text.trim().isNotEmpty;
-      return AppEmptyState(
-        icon: AppIcons.people,
-        title: querying ? 'No matches' : 'No testers yet',
-        message: querying
-            ? 'No opted-in testers match that name or email.'
-            : 'When people opt in on their profile, they\'ll show up here. '
-                  'You can still invite by email from the project.',
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.gutter,
-          0,
-          AppSpace.gutter,
-          AppSpace.xxxl,
-        ),
+        padding: const EdgeInsets.only(bottom: AppSpace.xxxl),
         children: [
-          if (_top.isNotEmpty && _search.text.trim().isEmpty) ...[
-            Text('Top testers', style: theme.textTheme.labelSmall),
-            const SizedBox(height: AppSpace.sm),
-            SizedBox(
-              height: 108,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _top.length.clamp(0, 8),
-                separatorBuilder: (_, _) => const SizedBox(width: AppSpace.sm),
-                itemBuilder: (context, index) => _TopTesterChip(
-                  tester: _withLocalInviteState(_top[index]),
-                  onTap: () => _showTester(_top[index]),
+          GroupedSection(
+            header: 'Open to swap',
+            // footer: 'You join their project; they join yours when they accept.',
+            children: [
+              for (final partner in _partners)
+                MarketplacePersonRow(
+                  name: partner.displayLabel,
+                  hue: partner.avatarHue,
+                  subtitle: partner.marketplaceSubtitle,
+                  trailing: _partnerTrailing(
+                    partner,
+                    _proposing.contains(partner.id),
+                    partner.swapPending || _proposed.contains(partner.id),
+                  ),
+                  onTap: partner.canPropose &&
+                          !partner.swapPending &&
+                          !_proposed.contains(partner.id)
+                      ? () => _proposeSwap(partner)
+                      : null,
                 ),
-              ),
-            ),
-            const SizedBox(height: AppSpace.xl),
-            Text('Open to test', style: theme.textTheme.labelSmall),
-            const SizedBox(height: AppSpace.sm),
-          ],
-          for (final tester in _testers)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpace.sm + 2),
-              child: _TesterRow(
-                tester: _withLocalInviteState(tester),
-                inviting: _inviting.contains(tester.id),
-                onTap: () => _showTester(tester),
-              ),
-            ),
+            ],
+          ),
         ],
       ),
     );
@@ -480,16 +480,19 @@ class _TesterProfileSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final tones = AppTones.of(context);
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
 
     String statusLabel;
+    Color statusColor;
     if (tester.alreadyMember) {
-      statusLabel = 'Already on the team';
+      statusLabel = 'On your team';
+      statusColor = scheme.onSurfaceVariant;
     } else if (tester.invitePending) {
-      statusLabel = 'Invite pending';
+      statusLabel = 'Invite sent';
+      statusColor = scheme.primary;
     } else {
       statusLabel = 'Open to test';
+      statusColor = scheme.primary;
     }
 
     return Padding(
@@ -506,75 +509,66 @@ class _TesterProfileSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SheetHeader(
-                title: 'Tester profile',
-                subtitle: 'Review their details before sending an invite.',
-              ),
               Row(
                 children: [
-                  _Avatar(name: tester.name, hue: tester.avatarHue, size: 64),
-                  const SizedBox(width: AppSpace.lg),
+                  PersonAvatar(
+                    name: tester.displayLabel,
+                    hue: tester.avatarHue,
+                    size: 52,
+                  ),
+                  const SizedBox(width: AppSpace.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          tester.name,
-                          style: theme.textTheme.headlineSmall,
+                          tester.displayLabel,
+                          style: theme.textTheme.titleLarge,
                         ),
-                        if (tester.email.isNotEmpty) ...[
-                          const SizedBox(height: AppSpace.xxs),
-                          Text(
-                            tester.email,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                        const SizedBox(height: AppSpace.xxs),
+                        // Text(
+                        //   tester.marketplaceSubtitle,
+                        //   style: theme.textTheme.bodySmall?.copyWith(
+                        //     color: scheme.onSurfaceVariant,
+                        //   ),
+                        // ),
                         const SizedBox(height: AppSpace.sm),
-                        StatusPill(
-                          label: statusLabel,
-                          color: tester.canInvite
-                              ? scheme.primary
-                              : scheme.onSurfaceVariant,
-                        ),
+                        StatusPill(label: statusLabel, color: statusColor),
                       ],
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpace.xl),
-              MetricStrip(
-                metrics: [
-                  Metric(
-                    label: 'Rating',
-                    value: tester.ratingCount == 0
-                        ? '—'
+              GroupedSection(
+                children: [
+                  GroupedListTile(
+                    icon: AppIcons.star,
+                    title: 'Rating',
+                    subtitle: tester.ratingCount == 0
+                        ? 'No ratings yet'
                         : tester.ratingAvg.toStringAsFixed(1),
-                    tint: tester.ratingCount > 0 ? scheme.primary : null,
+                    showChevron: false,
                   ),
-                  Metric(
-                    label: 'Reviews',
-                    value: '${tester.ratingCount}',
+                  GroupedListTile(
+                    icon: AppIcons.feedback,
+                    title: 'Reviews',
+                    subtitle: '${tester.ratingCount}',
+                    showChevron: false,
                   ),
-                  Metric(
-                    label: 'Completed',
-                    value: '${tester.completedCount}',
+                  GroupedListTile(
+                    icon: AppIcons.check,
+                    title: 'Completed tests',
+                    subtitle: '${tester.completedCount}',
+                    showChevron: false,
                   ),
                 ],
               ),
               if (tester.bio.isNotEmpty) ...[
                 const SizedBox(height: AppSpace.xl),
-                Text('About', style: theme.textTheme.labelSmall),
-                const SizedBox(height: AppSpace.sm),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpace.lg),
-                  decoration: BoxDecoration(
-                    color: tones.sunken,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Text(tester.bio, style: theme.textTheme.bodyMedium),
+                GroupedSection(
+                  header: 'Bio',
+                  children: [GroupedNote(tester.bio)],
                 ),
               ],
               const SizedBox(height: AppSpace.xl),
@@ -595,281 +589,11 @@ class _TesterProfileSheet extends StatelessWidget {
                 OutlinedButton(
                   onPressed: null,
                   child: Text(
-                    tester.alreadyMember ? 'Already joined' : 'Invite sent',
+                    tester.alreadyMember ? 'Already on team' : 'Invite sent',
                   ),
                 ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TopTesterChip extends StatelessWidget {
-  const _TopTesterChip({required this.tester, required this.onTap});
-
-  final TesterProfile tester;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Material(
-      color: theme.cardColor,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Container(
-          width: 148,
-          padding: const EdgeInsets.all(AppSpace.md),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: theme.dividerColor),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _Avatar(name: tester.name, hue: tester.avatarHue, size: 28),
-                  const Spacer(),
-                  Icon(AppIcons.star, size: 14, color: scheme.primary),
-                  const SizedBox(width: 2),
-                  Text(
-                    tester.ratingAvg.toStringAsFixed(1),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                tester.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall,
-              ),
-              Text(
-                '${tester.completedCount} completed',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TesterRow extends StatelessWidget {
-  const _TesterRow({
-    required this.tester,
-    required this.inviting,
-    required this.onTap,
-  });
-
-  final TesterProfile tester;
-  final bool inviting;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    String actionLabel;
-    if (tester.alreadyMember) {
-      actionLabel = 'Joined';
-    } else if (tester.invitePending) {
-      actionLabel = 'Invited';
-    } else {
-      actionLabel = 'View';
-    }
-
-    return Material(
-      color: theme.cardColor,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpace.md,
-            AppSpace.md,
-            AppSpace.sm,
-            AppSpace.md,
-          ),
-          child: Row(
-            children: [
-              _Avatar(name: tester.name, hue: tester.avatarHue, size: 44),
-              const SizedBox(width: AppSpace.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tester.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    if (tester.email.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        tester.email,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                    if (tester.bio.isNotEmpty) ...[
-                      const SizedBox(height: AppSpace.xs),
-                      Text(
-                        tester.bio,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                    const SizedBox(height: AppSpace.xs),
-                    Text(
-                      tester.ratingLabel,
-                      style: theme.textTheme.labelSmall,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpace.sm),
-              if (inviting)
-                const SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                StatusPill(
-                  label: actionLabel,
-                  color: tester.canInvite
-                      ? scheme.primary
-                      : scheme.onSurfaceVariant,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name, required this.hue, required this.size});
-
-  final String name;
-  final int? hue;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: avatarColorForHue(hue, Theme.of(context).colorScheme),
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        initialsFor(name),
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: size * 0.36,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _PartnerTile extends StatelessWidget {
-  const _PartnerTile({
-    required this.partner,
-    required this.pending,
-    required this.proposing,
-    this.onPropose,
-  });
-
-  final SwapPartner partner;
-  final bool pending;
-  final bool proposing;
-  final VoidCallback? onPropose;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final projectNames = partner.projects.map((p) => p.name).join(', ');
-
-    return Material(
-      color: theme.cardColor,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.md,
-          AppSpace.md,
-          AppSpace.sm,
-          AppSpace.md,
-        ),
-        child: Row(
-          children: [
-            _Avatar(name: partner.name, hue: partner.avatarHue, size: 44),
-            const SizedBox(width: AppSpace.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    partner.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  if (projectNames.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      projectNames,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                  const SizedBox(height: AppSpace.xs),
-                  Text(partner.ratingLabel, style: theme.textTheme.labelSmall),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpace.sm),
-            if (proposing)
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            else if (onPropose != null)
-              FilledButton(
-                onPressed: onPropose,
-                child: const Text('Swap'),
-              )
-            else
-              StatusPill(
-                label: pending ? 'Proposed' : 'Unavailable',
-                color: scheme.onSurfaceVariant,
-              ),
-          ],
         ),
       ),
     );

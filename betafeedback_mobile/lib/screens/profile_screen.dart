@@ -81,18 +81,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _AppearanceRow(appState: appState),
                     _PushRow(appState: appState),
                     _EmailRow(appState: appState),
-                    GroupedListTile(
-                      icon: AppIcons.mailOpen,
-                        title: 'Invitations',
-                        subtitle: appState.pendingTesterInviteCount > 0
-                            ? '${appState.pendingTesterInviteCount} pending'
-                            : 'View invites to join projects',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const TesterInvitesScreen(),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: AppSpace.xxl),
@@ -376,11 +364,11 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
 
     return GroupedSection(
       header: 'Testing',
-      footer: user.openToSwap
-          ? 'Creators can propose test-for-test swaps with you.'
-          : user.openToTest
-          ? 'You appear when creators look for testers.'
-          : 'Turn on to get invited to test apps.',
+      // footer: user.openToSwap
+      //     ? 'Creators can propose test-for-test swaps with you.'
+      //     : user.openToTest
+      //     ? 'You appear when creators look for testers.'
+      //     : 'Turn on to get invited to test apps.',
       children: [
         GroupedListTile(
           icon: AppIcons.search,
@@ -419,6 +407,16 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
           subtitle: user.testerRatingLabel,
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const TesterRatingsScreen()),
+          ),
+        ),
+        GroupedListTile(
+          icon: AppIcons.mailOpen,
+          title: 'Invitations',
+          subtitle: widget.appState.pendingTesterInviteCount > 0
+              ? '${widget.appState.pendingTesterInviteCount} pending'
+              : 'View invites to join projects',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const TesterInvitesScreen()),
           ),
         ),
         if (user.openToSwap || widget.appState.pendingIncomingSwapCount > 0)
