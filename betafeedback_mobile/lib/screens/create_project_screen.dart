@@ -49,6 +49,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   bool _submitting = false;
   final _selectedPlatforms = <String>{};
   final _linkControllers = <String, TextEditingController>{};
+  final _googleGroupController = TextEditingController();
   Uint8List? _logoBytes;
   String? _logoFilename;
   String? _logoContentType;
@@ -60,6 +61,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     for (final controller in _linkControllers.values) {
       controller.dispose();
     }
+    _googleGroupController.dispose();
     super.dispose();
   }
 
@@ -129,6 +131,9 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
       final project = await AppScope.of(context).createProject(
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
+        googleGroupJoinUrl: _selectedPlatforms.contains('android')
+            ? _googleGroupController.text.trim()
+            : null,
         platformLinks: _collectPlatformLinks(),
         logoBytes: _logoBytes,
         logoFilename: _logoFilename,
@@ -243,6 +248,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                             _ => _LinksStep(
                               selectedPlatforms: _selectedPlatforms,
                               linkControllers: _linkControllers,
+                              googleGroupController: _googleGroupController,
                               validateUrl: _validateUrl,
                             ),
                           },
@@ -537,11 +543,13 @@ class _LinksStep extends StatelessWidget {
   const _LinksStep({
     required this.selectedPlatforms,
     required this.linkControllers,
+    required this.googleGroupController,
     required this.validateUrl,
   });
 
   final Set<String> selectedPlatforms;
   final Map<String, TextEditingController> linkControllers;
+  final TextEditingController googleGroupController;
   final String? Function(String?) validateUrl;
 
   @override
@@ -580,6 +588,19 @@ class _LinksStep extends StatelessWidget {
               ),
               validator: validateUrl,
             ),
+            if (selected[i].id == 'android') ...[
+              const SizedBox(height: AppSpace.md),
+              TextFormField(
+                controller: googleGroupController,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: 'Google Group join link (optional)',
+                  hintText: 'https://groups.google.com/g/…',
+                  prefixIcon: Icon(AppIcons.people),
+                ),
+                validator: validateUrl,
+              ),
+            ],
           ],
         ],
       ),

@@ -438,6 +438,7 @@ class AppState extends ChangeNotifier {
     required String name,
     required String description,
     String? appLink,
+    String? googleGroupJoinUrl,
     List<PlatformLink> platformLinks = const [],
     List<int>? logoBytes,
     String? logoFilename,
@@ -448,6 +449,8 @@ class AppState extends ChangeNotifier {
               'name': name,
               'description': description,
               if (appLink != null && appLink.isNotEmpty) 'app_link': appLink,
+              if (googleGroupJoinUrl != null && googleGroupJoinUrl.isNotEmpty)
+                'google_group_join_url': googleGroupJoinUrl,
               if (platformLinks.isNotEmpty)
                 'platform_links': platformLinks.map((l) => l.toJson()).toList(),
             })
@@ -478,6 +481,30 @@ class AppState extends ChangeNotifier {
 
     await loadProjects();
     return project;
+  }
+
+  Future<Project> updateProjectDistribution({
+    required String projectId,
+    String? googleGroupJoinUrl,
+    required List<PlatformLink> platformLinks,
+  }) async {
+    final body = <String, dynamic>{
+      'platform_links': platformLinks.map((l) => l.toJson()).toList(),
+      'google_group_join_url': googleGroupJoinUrl ?? '',
+    };
+    final res =
+        await _api.patch('/v1/projects/$projectId', body) as Map<String, dynamic>;
+    final project = Project.fromJson(res);
+    await loadProject(projectId);
+    return project;
+  }
+
+  /// Tester emails for Play Console / Google Group allowlists (creator only).
+  Future<List<String>> listTesterEmails(String projectId) async {
+    final res =
+        await _api.get('/v1/projects/$projectId/testers/emails')
+            as Map<String, dynamic>;
+    return (res['emails'] as List?)?.cast<String>() ?? const [];
   }
 
   Future<void> addMember({

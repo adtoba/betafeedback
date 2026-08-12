@@ -32,6 +32,7 @@ class Project {
     this.appLink,
     this.logoUrl,
     this.platformLinks = const [],
+    this.googleGroupJoinUrl,
     this.members = const [],
     this.feedback = const [],
     this.structuredBugs = const [],
@@ -60,6 +61,9 @@ class Project {
 
   /// Per-platform test links the creator added (iOS, Android, Web, …).
   final List<PlatformLink> platformLinks;
+
+  /// Optional Google Group URL for Play closed-testing allowlists.
+  final String? googleGroupJoinUrl;
   final DateTime createdAt;
 
   /// Populated on detail loads; empty for list summaries.
@@ -112,6 +116,7 @@ class Project {
               ?.map((e) => PlatformLink.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const <PlatformLink>[],
+      googleGroupJoinUrl: json['google_group_join_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       members: members,
       testerCount: (json['tester_count'] as num?)?.toInt() ?? 0,
@@ -147,6 +152,7 @@ class Project {
       appLink: appLink,
       logoUrl: logoUrl,
       platformLinks: platformLinks,
+      googleGroupJoinUrl: googleGroupJoinUrl,
       createdAt: createdAt,
       members: members ?? this.members,
       feedback: feedback ?? this.feedback,

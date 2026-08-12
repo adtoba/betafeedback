@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -36,8 +34,30 @@ class GoogleAuthService {
     return idToken;
   }
 
+  /// Clears the Google session so the next sign-in shows the account picker.
+  ///
+  /// On Android, [GoogleSignIn.signOut] keeps credentials valid and the SDK may
+  /// silently re-use the last account. [disconnect] revokes access instead.
   Future<void> signOut() async {
-    await _googleSignIn?.signOut();
+    GoogleSignIn? client = _googleSignIn;
+    try {
+      client ??= await _client();
+    } catch (_) {
+      _googleSignIn = null;
+      return;
+    }
+
+    try {
+      await client.disconnect();
+    } catch (e) {
+      debugPrint('Google disconnect failed: $e');
+      try {
+        await client.signOut();
+      } catch (e) {
+        debugPrint('Google signOut failed: $e');
+      }
+    }
+    _googleSignIn = null;
   }
 
   Future<GoogleSignIn> _client() async {
@@ -53,9 +73,9 @@ class GoogleAuthService {
     _googleSignIn = GoogleSignIn(
       scopes: const ['email', 'profile'],
       serverClientId: webClientId,
-      clientId: !kIsWeb && Platform.isIOS && iosClientId.isNotEmpty
-          ? iosClientId
-          : null,
+      // clientId: !kIsWeb && Platform.isIOS && iosClientId.isNotEmpty
+      //     ? iosClientId
+      //     : null,
     );
     return _googleSignIn!;
   }

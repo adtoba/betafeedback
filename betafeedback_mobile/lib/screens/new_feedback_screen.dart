@@ -220,7 +220,6 @@ class _NewFeedbackScreenState extends State<NewFeedbackScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final project = AppScope.of(context).projectById(widget.projectId);
     final platformLinks = project?.platformLinks ?? const <PlatformLink>[];
     final showPlatformReadOnly =
@@ -370,7 +369,6 @@ class _AutoContext extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final tones = AppTones.of(context);
 
     return Container(

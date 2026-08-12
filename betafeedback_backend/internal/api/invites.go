@@ -31,7 +31,7 @@ func (s *Server) joinInvite(w http.ResponseWriter, r *http.Request, userID strin
 		writeError(w, http.StatusBadRequest, "invite code is required")
 		return
 	}
-	project, err := s.store.JoinByInviteCode(r.Context(), code, userID)
+	project, newlyJoined, err := s.store.JoinByInviteCode(r.Context(), code, userID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "invite not found")
@@ -39,6 +39,12 @@ func (s *Server) joinInvite(w http.ResponseWriter, r *http.Request, userID strin
 		}
 		s.serverError(w, "join invite", err)
 		return
+	}
+	if newlyJoined {
+		tester, err := s.store.GetUser(r.Context(), userID)
+		if err == nil {
+			s.notifyTesterJoined(r.Context(), project, tester)
+		}
 	}
 	writeJSON(w, http.StatusOK, project)
 }

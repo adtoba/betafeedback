@@ -30,7 +30,7 @@ const List<ProjectPlatform> kProjectPlatforms = [
     id: 'android',
     label: 'Android',
     icon: AppIcons.platformAndroid,
-    hint: 'Play Store or APK link',
+    hint: 'Play closed-testing or APK link',
   ),
   ProjectPlatform(
     id: 'web',

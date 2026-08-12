@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/adetoba/betafeedback_backend/internal/mail"
 	"github.com/adetoba/betafeedback_backend/internal/model"
@@ -145,5 +146,28 @@ func (s *Server) emailMemberInvite(ctx context.Context, inv model.TesterInvitati
 	msg.To = user.Email
 	if err := s.mailer.SendMessage(ctx, msg); err != nil {
 		s.logger.Error("send member invite email", "err", err, "to", user.Email)
+	}
+}
+
+func (s *Server) notifyTesterJoined(ctx context.Context, project model.Project, tester model.User) {
+	creatorID := project.CreatorID
+	testerName := strings.TrimSpace(tester.Name)
+	if testerName == "" {
+		testerName = tester.Email
+	}
+
+	s.pushToUsers(ctx, []string{creatorID}, project.ID, "tester_joined",
+		"New tester joined",
+		fmt.Sprintf("%s joined %s — add %s to Play if needed", testerName, project.Name, tester.Email))
+
+	creator, err := s.store.GetUser(ctx, creatorID)
+	if err != nil {
+		s.logger.Error("load creator for tester joined email", "err", err)
+		return
+	}
+	msg := mail.TesterJoined(project.Name, testerName, tester.Email, s.mailer.ProjectURL(project.ID))
+	msg.To = creator.Email
+	if err := s.mailer.SendMessage(ctx, msg); err != nil {
+		s.logger.Error("send tester joined email", "err", err, "to", creator.Email)
 	}
 }

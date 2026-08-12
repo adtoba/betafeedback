@@ -20,10 +20,11 @@ func (s *Server) listProjects(w http.ResponseWriter, r *http.Request, userID str
 }
 
 type createProjectRequest struct {
-	Name          string               `json:"name"`
-	Description   string               `json:"description"`
-	AppLink       string               `json:"app_link"`
-	PlatformLinks []model.PlatformLink `json:"platform_links"`
+	Name               string               `json:"name"`
+	Description        string               `json:"description"`
+	AppLink            string               `json:"app_link"`
+	GoogleGroupJoinURL string               `json:"google_group_join_url"`
+	PlatformLinks      []model.PlatformLink `json:"platform_links"`
 }
 
 // sanitizePlatformLinks trims and drops empty or duplicate-platform entries so
@@ -69,6 +70,7 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request, userID st
 	project, err := s.store.CreateProject(
 		r.Context(), userID, name, strings.TrimSpace(req.Description),
 		generateInviteCode(name), optionalString(req.AppLink),
+		optionalString(req.GoogleGroupJoinURL),
 		sanitizePlatformLinks(req.PlatformLinks),
 	)
 	if err != nil {
@@ -92,7 +94,9 @@ func (s *Server) getProject(w http.ResponseWriter, r *http.Request, userID strin
 }
 
 type updateProjectRequest struct {
-	LogoURL *string `json:"logo_url"`
+	LogoURL            *string              `json:"logo_url"`
+	GoogleGroupJoinURL *string              `json:"google_group_join_url"`
+	PlatformLinks      []model.PlatformLink `json:"platform_links"`
 }
 
 func validProjectLogoURL(projectID, url string) bool {
@@ -118,27 +122,84 @@ func (s *Server) updateProject(w http.ResponseWriter, r *http.Request, userID st
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.LogoURL == nil {
-		writeError(w, http.StatusBadRequest, "logo_url is required")
-		return
-	}
-	logoURL := strings.TrimSpace(*req.LogoURL)
-	if logoURL != "" && !validProjectLogoURL(id, logoURL) {
-		writeError(w, http.StatusBadRequest, "invalid logo_url")
-		return
+
+	if req.LogoURL != nil {
+		logoURL := strings.TrimSpace(*req.LogoURL)
+		if logoURL != "" && !validProjectLogoURL(id, logoURL) {
+			writeError(w, http.StatusBadRequest, "invalid logo_url")
+			return
+		}
+		var stored *string
+		if logoURL != "" {
+			stored = &logoURL
+		}
+		if _, err := s.store.UpdateProjectLogo(r.Context(), id, stored); err != nil {
+			s.serverError(w, "update project logo", err)
+			return
+		}
 	}
 
-	var stored *string
-	if logoURL != "" {
-		stored = &logoURL
+	if req.GoogleGroupJoinURL != nil || req.PlatformLinks != nil {
+		var links []model.PlatformLink
+		if req.PlatformLinks != nil {
+			links = sanitizePlatformLinks(req.PlatformLinks)
+		} else {
+			current, err := s.store.GetProject(r.Context(), id)
+			if err != nil {
+				s.serverError(w, "get project", err)
+				return
+			}
+			links = current.PlatformLinks
+		}
+		var groupURL *string
+		if req.GoogleGroupJoinURL != nil {
+			groupURL = optionalString(strings.TrimSpace(*req.GoogleGroupJoinURL))
+		} else {
+			current, err := s.store.GetProject(r.Context(), id)
+			if err != nil {
+				s.serverError(w, "get project", err)
+				return
+			}
+			groupURL = current.GoogleGroupJoinURL
+		}
+		if _, err := s.store.UpdateProjectDistribution(r.Context(), id, groupURL, links); err != nil {
+			s.serverError(w, "update project distribution", err)
+			return
+		}
 	}
 
-	project, err := s.store.UpdateProjectLogo(r.Context(), id, stored)
+	project, err := s.store.GetProject(r.Context(), id)
 	if err != nil {
-		s.serverError(w, "update project", err)
+		s.serverError(w, "get project", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, project)
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func (s *Server) listTesterEmails(w http.ResponseWriter, r *http.Request, userID string) {
+	id := r.PathValue("id")
+	role, ok := s.requireMember(w, r, id, userID)
+	if !ok {
+		return
+	}
+	if role != "creator" {
+		writeError(w, http.StatusForbidden, "only the creator can export tester emails")
+		return
+	}
+
+	emails, err := s.store.ListTesterEmails(r.Context(), id)
+	if err != nil {
+		s.serverError(w, "list tester emails", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"emails": emails})
 }
 
 type addMemberRequest struct {

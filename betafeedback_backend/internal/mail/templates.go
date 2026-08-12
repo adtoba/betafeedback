@@ -263,3 +263,22 @@ func MemberInvite(projectName, fromName, role, openURL string) Message {
 		Footer:   "You're receiving this because someone invited you to a project on BetaFeedback.",
 	}
 }
+
+// TesterJoined notifies a creator that someone joined as a tester (invite link or
+// accepted invitation). Includes the tester email for Play Console / Google Group.
+func TesterJoined(projectName, testerName, testerEmail, projectURL string) Message {
+	return Message{
+		Subject:   fmt.Sprintf("%s joined %s", testerName, projectName),
+		Preheader: fmt.Sprintf("Add %s to Play closed testing if needed.", testerEmail),
+		Title:     "New tester joined",
+		Intro: fmt.Sprintf(
+			"%s (%s) joined %s as a tester. If you use Play closed testing or a Google Group, add this email to your allowlist.",
+			testerName,
+			testerEmail,
+			projectName,
+		),
+		CTALabel: "View project",
+		CTAURL:   projectURL,
+		Footer:   "You're receiving this because someone joined your beta on BetaFeedback.",
+	}
+}

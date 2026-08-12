@@ -88,6 +88,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/projects", s.requireAuth(s.createProject))
 	mux.HandleFunc("GET /v1/projects/{id}", s.requireAuth(s.getProject))
 	mux.HandleFunc("PATCH /v1/projects/{id}", s.requireAuth(s.updateProject))
+	mux.HandleFunc("GET /v1/projects/{id}/testers/emails", s.requireAuth(s.listTesterEmails))
 	mux.HandleFunc("POST /v1/projects/{id}/members", s.requireAuth(s.addMember))
 	mux.HandleFunc("POST /v1/projects/{id}/tester-invites", s.requireAuth(s.createTesterInvite))
 	mux.HandleFunc("GET /v1/projects/{id}/tester-invites", s.requireAuth(s.listProjectTesterInvites))

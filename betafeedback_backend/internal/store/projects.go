@@ -27,7 +27,12 @@ func decodePlatformLinks(raw []byte) ([]model.PlatformLink, error) {
 }
 
 // CreateProject inserts a project and registers the creator as a member.
-func (s *Store) CreateProject(ctx context.Context, creatorID, name, description, inviteCode string, appLink *string, platformLinks []model.PlatformLink) (model.Project, error) {
+func (s *Store) CreateProject(
+	ctx context.Context,
+	creatorID, name, description, inviteCode string,
+	appLink, googleGroupJoinURL *string,
+	platformLinks []model.PlatformLink,
+) (model.Project, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return model.Project{}, err
@@ -45,11 +50,11 @@ func (s *Store) CreateProject(ctx context.Context, creatorID, name, description,
 	var p model.Project
 	var plRaw []byte
 	err = tx.QueryRow(ctx, `
-		INSERT INTO projects (name, description, creator_id, invite_code, app_link, platform_links)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, created_at
-	`, name, description, creatorID, inviteCode, appLink, string(linksJSON)).
-		Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.CreatedAt)
+		INSERT INTO projects (name, description, creator_id, invite_code, app_link, platform_links, google_group_join_url)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, google_group_join_url, created_at
+	`, name, description, creatorID, inviteCode, appLink, string(linksJSON), googleGroupJoinURL).
+		Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt)
 	if err != nil {
 		return model.Project{}, err
 	}
@@ -76,7 +81,7 @@ func (s *Store) CreateProject(ctx context.Context, creatorID, name, description,
 func (s *Store) ListProjectsForUser(ctx context.Context, userID string) ([]model.Project, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT p.id::text, p.name, p.description, p.creator_id::text, cu.name,
-		       p.invite_code, p.app_link, p.platform_links, p.logo_url, p.created_at,
+		       p.invite_code, p.app_link, p.platform_links, p.logo_url, p.google_group_join_url, p.created_at,
 		       (SELECT count(*) FROM project_members t WHERE t.project_id = p.id AND t.role = 'tester'),
 		       (SELECT count(*) FROM project_members a WHERE a.project_id = p.id),
 		       (SELECT max(created_at) FROM feedback f WHERE f.project_id = p.id),
@@ -100,7 +105,7 @@ func (s *Store) ListProjectsForUser(ctx context.Context, userID string) ([]model
 		var p model.Project
 		var plRaw []byte
 		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.CreatorName,
-			&p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.CreatedAt,
+			&p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt,
 			&p.TesterCount, &p.MemberCount, &p.LatestFeedbackAt, &p.LatestActivityAt); err != nil {
 			return nil, err
 		}
@@ -118,9 +123,9 @@ func (s *Store) GetProject(ctx context.Context, id string) (model.Project, error
 	var p model.Project
 	var plRaw []byte
 	err := s.pool.QueryRow(ctx, `
-		SELECT id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, created_at
+		SELECT id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, google_group_join_url, created_at
 		FROM projects WHERE id = $1
-	`, id).Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.CreatedAt)
+	`, id).Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Project{}, ErrNotFound
 	}
@@ -155,8 +160,8 @@ func (s *Store) UpdateProjectLogo(ctx context.Context, id string, logoURL *strin
 	var plRaw []byte
 	err := s.pool.QueryRow(ctx, `
 		UPDATE projects SET logo_url = $2 WHERE id = $1
-		RETURNING id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, created_at
-	`, id, logoURL).Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.CreatedAt)
+		RETURNING id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, google_group_join_url, created_at
+	`, id, logoURL).Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Project{}, ErrNotFound
 	}
@@ -193,18 +198,19 @@ func (s *Store) InviteInfo(ctx context.Context, code string) (model.InviteInfo, 
 }
 
 // JoinByInviteCode adds the authenticated user as a tester on the project that
-// owns the invite code. Idempotent if already a member.
-func (s *Store) JoinByInviteCode(ctx context.Context, code, userID string) (model.Project, error) {
+// owns the invite code. Idempotent if already a member. The bool is true when a
+// new tester membership was created.
+func (s *Store) JoinByInviteCode(ctx context.Context, code, userID string) (model.Project, bool, error) {
 	code = strings.TrimSpace(strings.TrimSuffix(code, "/"))
 	var projectID string
 	err := s.pool.QueryRow(ctx, `
 		SELECT id::text FROM projects WHERE lower(invite_code) = lower($1)
 	`, code).Scan(&projectID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.Project{}, ErrNotFound
+		return model.Project{}, false, ErrNotFound
 	}
 	if err != nil {
-		return model.Project{}, err
+		return model.Project{}, false, err
 	}
 
 	var already bool
@@ -213,18 +219,20 @@ func (s *Store) JoinByInviteCode(ctx context.Context, code, userID string) (mode
 			SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
 		)
 	`, projectID, userID).Scan(&already); err != nil {
-		return model.Project{}, err
+		return model.Project{}, false, err
 	}
-	if !already {
+	newlyJoined := !already
+	if newlyJoined {
 		if _, err := s.pool.Exec(ctx, `
 			INSERT INTO project_members (project_id, user_id, role)
 			VALUES ($1, $2, 'tester')
 		`, projectID, userID); err != nil {
-			return model.Project{}, err
+			return model.Project{}, false, err
 		}
 	}
 
-	return s.GetProject(ctx, projectID)
+	project, err := s.GetProject(ctx, projectID)
+	return project, newlyJoined, err
 }
 
 // MemberRole returns the user's role within a project, or ErrNotFound if they
@@ -299,4 +307,67 @@ func (s *Store) AddMember(ctx context.Context, projectID, name, email, role stri
 	}
 	m.Role = role
 	return m, nil
+}
+
+// UpdateProjectDistribution sets Android distribution fields (Play testing link
+// lives in platform_links; optional Google Group join URL).
+func (s *Store) UpdateProjectDistribution(
+	ctx context.Context,
+	id string,
+	googleGroupJoinURL *string,
+	platformLinks []model.PlatformLink,
+) (model.Project, error) {
+	if platformLinks == nil {
+		platformLinks = []model.PlatformLink{}
+	}
+	linksJSON, err := json.Marshal(platformLinks)
+	if err != nil {
+		return model.Project{}, err
+	}
+
+	var p model.Project
+	var plRaw []byte
+	err = s.pool.QueryRow(ctx, `
+		UPDATE projects
+		SET google_group_join_url = $2, platform_links = $3
+		WHERE id = $1
+		RETURNING id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, google_group_join_url, created_at
+	`, id, googleGroupJoinURL, string(linksJSON)).
+		Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.Project{}, ErrNotFound
+	}
+	if err != nil {
+		return model.Project{}, err
+	}
+	if p.PlatformLinks, err = decodePlatformLinks(plRaw); err != nil {
+		return model.Project{}, err
+	}
+	p.InviteLink = s.InviteLink(p.InviteCode)
+	return p, nil
+}
+
+// ListTesterEmails returns emails for testers on a project.
+func (s *Store) ListTesterEmails(ctx context.Context, projectID string) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT u.email
+		FROM project_members m
+		JOIN users u ON u.id = m.user_id
+		WHERE m.project_id = $1 AND m.role = 'tester'
+		ORDER BY u.email
+	`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	emails := make([]string, 0)
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err != nil {
+			return nil, err
+		}
+		emails = append(emails, email)
+	}
+	return emails, rows.Err()
 }

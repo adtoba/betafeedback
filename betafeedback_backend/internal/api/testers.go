@@ -231,9 +231,14 @@ func (s *Server) respondTesterInvite(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	if status == "accepted" {
-		s.pushToUsers(r.Context(), []string{inv.FromUserID}, inv.ProjectID, "tester_joined",
-			"Tester joined", inv.ToUserName+" accepted your invitation to test "+inv.ProjectName)
+	if status == "accepted" && (inv.Role == "tester" || inv.Role == "") {
+		tester, err := s.store.GetUser(r.Context(), userID)
+		if err == nil {
+			project, err := s.store.GetProject(r.Context(), inv.ProjectID)
+			if err == nil {
+				s.notifyTesterJoined(r.Context(), project, tester)
+			}
+		}
 	}
 
 	writeJSON(w, http.StatusOK, inv)

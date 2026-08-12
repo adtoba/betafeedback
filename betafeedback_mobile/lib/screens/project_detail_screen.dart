@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -30,6 +31,9 @@ import 'new_feedback_screen.dart';
 import 'post_release_sheet.dart';
 import 'test_plan_screen.dart';
 import '../widgets/rate_tester_sheet.dart';
+import '../widgets/android_beta_install_sheet.dart';
+import '../widgets/edit_distribution_sheet.dart';
+import '../utils/android_beta_install.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   const ProjectDetailScreen({super.key, required this.projectId});
@@ -50,7 +54,18 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       final appState = AppScope.of(context);
       await appState.loadProject(widget.projectId);
       await appState.markProjectViewed(widget.projectId);
-      if (mounted) setState(() => _loaded = true);
+      if (mounted) {
+        setState(() => _loaded = true);
+        final project = appState.projectById(widget.projectId);
+        if (project != null &&
+            project.testerIds.contains(appState.currentUser.id)) {
+          await showAndroidBetaInstallSheet(
+            context,
+            project: project,
+            userEmail: appState.currentUser.email,
+          );
+        }
+      }
     });
   }
 
@@ -152,6 +167,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                           project.id,
                           'feedback',
                         );
+                      case 'android_testing':
+                        showEditDistributionSheet(context, project: project);
                     }
                   },
                   itemBuilder: (context) => [
@@ -168,6 +185,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                         child: _MenuRow(
                           icon: AppIcons.search,
                           label: 'Find testers',
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'android_testing',
+                        child: _MenuRow(
+                          icon: AppIcons.platformAndroid,
+                          label: 'Android closed testing',
                         ),
                       ),
                     ],
@@ -209,6 +233,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                     child: _ProjectHeader(
                       project: project,
                       appState: appState,
+                      isCreator: isCreator,
+                      isTester: isTester,
                       onViewBugs: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) =>
@@ -337,6 +363,39 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     }
   }
 
+  Future<void> _copyTesterEmails(
+    BuildContext context,
+    AppState appState,
+    Project project,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final emails = await appState.listTesterEmails(project.id);
+      if (emails.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('No tester emails yet'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      await Clipboard.setData(ClipboardData(text: emails.join('\n')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Copied ${emails.length} email${emails.length == 1 ? '' : 's'}',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
   void _showTeamSheet(
     BuildContext context,
     AppState appState,
@@ -443,6 +502,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                         );
                       },
                     ),
+                  if (isCreator && testers.isNotEmpty)
+                    GroupedListTile(
+                      icon: AppIcons.mail,
+                      title: 'Copy tester emails',
+                      subtitle: 'For Play Console or Google Group',
+                      onTap: () => _copyTesterEmails(context, appState, project),
+                    ),
                 ],
               ),
               const SizedBox(height: AppSpace.xxl),
@@ -464,6 +530,8 @@ class _ProjectHeader extends StatelessWidget {
   const _ProjectHeader({
     required this.project,
     required this.appState,
+    required this.isCreator,
+    required this.isTester,
     required this.onViewBugs,
     required this.onViewActivity,
     required this.onViewTestPlan,
@@ -471,6 +539,8 @@ class _ProjectHeader extends StatelessWidget {
 
   final Project project;
   final AppState appState;
+  final bool isCreator;
+  final bool isTester;
   final VoidCallback onViewBugs;
   final VoidCallback onViewActivity;
   final VoidCallback onViewTestPlan;
@@ -552,6 +622,36 @@ class _ProjectHeader extends StatelessWidget {
                   icon: link.icon,
                   label: link.label,
                   url: link.url,
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.xxl),
+        ],
+        if (isCreator || (isTester && projectHasAndroidBetaInstall(project))) ...[
+          GroupedSection(
+            header: 'Android beta',
+            children: [
+              if (isCreator)
+                GroupedListTile(
+                  icon: AppIcons.platformAndroid,
+                  title: 'Closed testing setup',
+                  subtitle: 'Play link and Google Group',
+                  onTap: () => showEditDistributionSheet(
+                    context,
+                    project: project,
+                  ),
+                ),
+              if (isTester && projectHasAndroidBetaInstall(project))
+                GroupedListTile(
+                  icon: AppIcons.download,
+                  title: 'Install Android beta',
+                  subtitle: 'Group + Play checklist',
+                  onTap: () => showAndroidBetaInstallSheet(
+                    context,
+                    project: project,
+                    userEmail: appState.currentUser.email,
+                    force: true,
+                  ),
                 ),
             ],
           ),
