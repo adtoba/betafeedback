@@ -16,6 +16,7 @@ class ApiConfig {
   ApiConfig._();
 
   static const _productionBaseUrl = 'https://api.betafeedback.com';
+  // Must match backend GOOGLE_CLIENT_ID (primary web client / ID token audience).
   static const _defaultGoogleWebClientId =
       '629984102803-1c856435gm27kroo0ag37uqjdrde14h5.apps.googleusercontent.com';
   static const _defaultGoogleIosClientId =

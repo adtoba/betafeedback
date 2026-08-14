@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         <div className="container legal__inner">
           <p className="eyebrow">Legal</p>
           <h1>Privacy Policy</h1>
-          <p className="legal__meta">Last updated: August 5, 2026</p>
+          <p className="legal__meta">Last updated: August 14, 2026</p>
           <p className="legal__lede">
             This policy explains what BetaFeedback (“we”, “us”) collects when
             you use our website and mobile apps, how we use it, and the choices
@@ -150,8 +150,10 @@ export default function PrivacyPage() {
             <h2>Retention</h2>
             <p>
               We keep account and project data while your account is active and
-              as needed to provide the service. You can request deletion of your
-              account by emailing{" "}
+              as needed to provide the service. You can delete your account in
+              the app under <strong>Profile → Delete account</strong>. That
+              removes your account, projects you created, and personal data. You
+              can also email{" "}
               <a href="mailto:hello@betafeedback.com">hello@betafeedback.com</a>
               . We may retain limited records where required for legal,
               security, or billing purposes.
@@ -175,7 +177,11 @@ export default function PrivacyPage() {
               </li>
               <li>
                 Request access, correction, or deletion of your personal data by
-                contacting us.
+                contacting us, or delete your account in the app.
+              </li>
+              <li>
+                Report or block another user from their profile, a feedback
+                card, or Find testers.
               </li>
             </ul>
             <p>

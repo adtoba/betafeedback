@@ -44,12 +44,20 @@ test plan, releases, activity, notifications, and subscriptions.
    ```
 
 3. **iOS:** follow [ios/GoogleSignIn.md](ios/GoogleSignIn.md) to update `Info.plist`.
-4. **Android:** no extra Dart config — the app uses the web client ID as `serverClientId`. Register your debug SHA-1 on the Android OAuth client:
+4. **Android:** no extra Dart config — the app uses the web client ID as `serverClientId`. Register **every** signing SHA-1 on an Android OAuth client (`com.betafeedback.app`):
 
    ```bash
+   # Debug (local flutter run)
    keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+
+   # Upload keystore (sideloaded release APK)
+   keytool -list -v -keystore android/betafeedback-upload.jks -alias betafeedback
+
+   # Play closed testing / production — copy SHA-1 from
+   # Play Console → App integrity → App signing key certificate
    ```
 
+   Adding only the upload key is not enough for Play installs: Google re-signs with the **App signing** key.
 Optional Google client ID overrides can go in `.env` as `GOOGLE_WEB_CLIENT_ID` /
 `GOOGLE_IOS_CLIENT_ID` (otherwise the app uses `GET /v1/auth/config`).
 

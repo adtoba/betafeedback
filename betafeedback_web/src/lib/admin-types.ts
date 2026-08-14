@@ -80,6 +80,19 @@ export type AdminTestSwap = {
   fulfilled_at?: string | null;
 };
 
+export type AdminUserReport = {
+  id: string;
+  reporter_id: string;
+  reporter_name: string;
+  reporter_email: string;
+  reported_user_id: string;
+  reported_name: string;
+  reported_email: string;
+  reason: string;
+  details: string;
+  created_at: string;
+};
+
 export type AdminUserDetail = {
   user: {
     id: string;

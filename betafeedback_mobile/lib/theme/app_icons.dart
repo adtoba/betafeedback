@@ -48,6 +48,8 @@ abstract final class AppIcons {
   static const sunMoon = LucideIcons.sunMoon;
   static const tag = LucideIcons.tag;
   static const repeat = LucideIcons.repeat;
+  static const userX = LucideIcons.userX;
+  static const trash = LucideIcons.trash2;
 
   static const platformIos = LucideIcons.smartphone;
   static const platformAndroid = LucideIcons.tablet;

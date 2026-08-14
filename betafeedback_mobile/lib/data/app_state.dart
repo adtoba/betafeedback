@@ -231,6 +231,27 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Permanently deletes the signed-in account, then signs out locally.
+  Future<void> deleteAccount() async {
+    await _api.delete('/v1/me');
+    await signOut();
+  }
+
+  Future<void> reportUser({
+    required String userId,
+    required String reason,
+    String details = '',
+  }) async {
+    await _api.post('/v1/users/$userId/report', {
+      'reason': reason,
+      if (details.isNotEmpty) 'details': details,
+    });
+  }
+
+  Future<void> blockUser(String userId) async {
+    await _api.post('/v1/users/$userId/block');
+  }
+
   Future<void> _clearSession() async {
     await _prefs?.remove(_tokenKey);
     _api.setToken(null);

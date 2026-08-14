@@ -14,6 +14,7 @@ const NAV: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/projects", label: "Projects" },
   { href: "/admin/feedback", label: "Feedback" },
+  { href: "/admin/reports", label: "Reports" },
   { href: "/admin/swaps", label: "Swaps" },
 ];
 

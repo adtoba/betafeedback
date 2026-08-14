@@ -8,6 +8,7 @@ import '../models/user.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
+import 'report_user_sheet.dart';
 import 'status_pill.dart';
 
 /// Renders a single feedback entry. Tester reports show full test details
@@ -114,6 +115,52 @@ class _ReportCardState extends State<_ReportCard> {
     }
   }
 
+  Future<void> _onSafetyAction(String action, User author) async {
+    final name = author.name.isNotEmpty ? author.name : author.email;
+    final label = name.isNotEmpty ? name : 'this person';
+    final appState = AppScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (action == 'report') {
+      final reported = await showReportUserSheet(
+        context,
+        displayName: label,
+        onSubmit: (reason, details) => appState.reportUser(
+          userId: author.id,
+          reason: reason,
+          details: details,
+        ),
+      );
+      if (!reported || !mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Report submitted. We\'ll review it within 24 hours.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (action == 'block') {
+      final confirmed = await confirmBlockUser(context, displayName: label);
+      if (!confirmed || !mounted) return;
+      try {
+        await appState.blockUser(author.id);
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('$label is blocked'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final message = widget.message;
@@ -159,6 +206,22 @@ class _ReportCardState extends State<_ReportCard> {
                   const SizedBox(width: AppSpace.sm),
                   _BugStatusPill(bug: linkedBug),
                 ],
+                if (author != null &&
+                    author.id.isNotEmpty &&
+                    author.id != AppScope.of(context).currentUser.id)
+                  PopupMenuButton<String>(
+                    tooltip: 'More',
+                    icon: Icon(
+                      AppIcons.more,
+                      size: 18,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    onSelected: (value) => _onSafetyAction(value, author),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'report', child: Text('Report')),
+                      PopupMenuItem(value: 'block', child: Text('Block')),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: AppSpace.md + 2),

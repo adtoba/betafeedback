@@ -69,7 +69,7 @@ func (s *Server) createSwap(w http.ResponseWriter, r *http.Request, userID strin
 			return
 		}
 		if errors.Is(err, store.ErrForbidden) {
-			writeError(w, http.StatusForbidden, "only the creator can propose a swap for their project")
+			writeError(w, http.StatusForbidden, conflictMessage(err))
 			return
 		}
 		if errors.Is(err, store.ErrConflict) {

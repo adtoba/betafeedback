@@ -92,6 +92,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Navigator.of(context).popUntil((r) => r.isFirst);
                       },
                     ),
+                    _DeleteAccountRow(
+                      isPaid: sub.isPaid,
+                      onDeleted: () {
+                        Navigator.of(context).popUntil((r) => r.isFirst);
+                      },
+                    ),
                   ],
                 ),
               ],
@@ -684,6 +690,74 @@ class _SignOutRow extends StatelessWidget {
       title: 'Sign out',
       showChevron: false,
       onTap: onSignOut,
+    );
+  }
+}
+
+class _DeleteAccountRow extends StatelessWidget {
+  const _DeleteAccountRow({
+    required this.isPaid,
+    required this.onDeleted,
+  });
+
+  final bool isPaid;
+  final VoidCallback onDeleted;
+
+  Future<void> _confirm(BuildContext context) async {
+    final subscriptionNote = isPaid
+        ? '\n\nYour Pro subscription is billed by Apple. Deleting your '
+              'account does not cancel it — manage or cancel it in Settings → '
+              'Apple ID → Subscriptions.'
+        : '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: Text(
+          'This permanently deletes your account, projects you created, '
+          'and personal data. This cannot be undone.$subscriptionNote',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await AppScope.of(context).deleteAccount();
+      if (!context.mounted) return;
+      onDeleted();
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return GroupedListTile(
+      icon: AppIcons.trash,
+      iconColor: scheme.error,
+      title: 'Delete account',
+      subtitle: 'Remove your data from BetaFeedback',
+      showChevron: false,
+      onTap: () => _confirm(context),
     );
   }
 }

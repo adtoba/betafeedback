@@ -97,6 +97,8 @@ http.Response _route(http.Request request) {
       result = ok({'activity': []});
     case 'GET /v1/projects/p1/releases':
       result = ok({'releases': []});
+    case 'DELETE /v1/me':
+      result = ok({});
     default:
       return http.Response(jsonEncode({'error': 'not found: $key'}), 404);
   }

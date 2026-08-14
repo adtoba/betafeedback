@@ -10,6 +10,7 @@ import '../widgets/grouped_list.dart';
 import '../widgets/marketplace_mode_switch.dart';
 import '../widgets/marketplace_person.dart';
 import '../widgets/plan_picker_sheet.dart';
+import '../widgets/report_user_sheet.dart';
 import '../widgets/status_pill.dart';
 
 /// Browse opted-in testers and invite them to [projectId], or propose swaps.
@@ -108,8 +109,107 @@ class _FindTestersScreenState extends State<FindTestersScreen> {
                 if (sheetContext.mounted) Navigator.of(sheetContext).pop();
               }
             : null,
+        onReport: () => _reportUser(
+          userId: tester.id,
+          displayName: tester.displayLabel,
+        ),
+        onBlock: () async {
+          final blocked = await _blockUser(
+            userId: tester.id,
+            displayName: tester.displayLabel,
+          );
+          if (blocked && sheetContext.mounted) {
+            Navigator.of(sheetContext).pop();
+          }
+        },
       ),
     );
+  }
+
+  Future<void> _showPartner(SwapPartner partner) async {
+    final pending = partner.swapPending || _proposed.contains(partner.id);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => _SwapPartnerSheet(
+        partner: partner,
+        proposing: _proposing.contains(partner.id),
+        pending: pending,
+        onPropose: partner.canPropose && !pending
+            ? () async {
+                Navigator.of(sheetContext).pop();
+                await _proposeSwap(partner);
+              }
+            : null,
+        onReport: () => _reportUser(
+          userId: partner.id,
+          displayName: partner.displayLabel,
+        ),
+        onBlock: () async {
+          final blocked = await _blockUser(
+            userId: partner.id,
+            displayName: partner.displayLabel,
+          );
+          if (blocked && sheetContext.mounted) {
+            Navigator.of(sheetContext).pop();
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _reportUser({
+    required String userId,
+    required String displayName,
+  }) async {
+    final reported = await showReportUserSheet(
+      context,
+      displayName: displayName,
+      onSubmit: (reason, details) => AppScope.of(context).reportUser(
+        userId: userId,
+        reason: reason,
+        details: details,
+      ),
+    );
+    if (!reported || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Report submitted. We\'ll review it within 24 hours.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<bool> _blockUser({
+    required String userId,
+    required String displayName,
+  }) async {
+    final confirmed = await confirmBlockUser(
+      context,
+      displayName: displayName,
+    );
+    if (!confirmed || !mounted) return false;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await AppScope.of(context).blockUser(userId);
+      if (!mounted) return false;
+      setState(() {
+        _testers = [for (final t in _testers) if (t.id != userId) t];
+        _partners = [for (final p in _partners) if (p.id != userId) p];
+      });
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('$displayName is blocked'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return true;
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+      );
+      return false;
+    }
   }
 
   Future<void> _invite(TesterProfile tester) async {
@@ -267,11 +367,7 @@ class _FindTestersScreenState extends State<FindTestersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final onSwaps = _modeIndex == 1;
-    final headline = onSwaps
-        ? 'Trade coverage with another creator'
-        : 'Invite people open to testing';
 
     return Scaffold(
       appBar: AppBar(
@@ -451,11 +547,7 @@ class _FindTestersScreenState extends State<FindTestersScreen> {
                     _proposing.contains(partner.id),
                     partner.swapPending || _proposed.contains(partner.id),
                   ),
-                  onTap: partner.canPropose &&
-                          !partner.swapPending &&
-                          !_proposed.contains(partner.id)
-                      ? () => _proposeSwap(partner)
-                      : null,
+                  onTap: () => _showPartner(partner),
                 ),
             ],
           ),
@@ -470,11 +562,15 @@ class _TesterProfileSheet extends StatelessWidget {
     required this.tester,
     required this.inviting,
     this.onInvite,
+    this.onReport,
+    this.onBlock,
   });
 
   final TesterProfile tester;
   final bool inviting;
   final Future<void> Function()? onInvite;
+  final Future<void> Function()? onReport;
+  final Future<void> Function()? onBlock;
 
   @override
   Widget build(BuildContext context) {
@@ -592,6 +688,141 @@ class _TesterProfileSheet extends StatelessWidget {
                     tester.alreadyMember ? 'Already on team' : 'Invite sent',
                   ),
                 ),
+              if (onReport != null || onBlock != null) ...[
+                const SizedBox(height: AppSpace.lg),
+                if (onReport != null)
+                  OutlinedButton(
+                    onPressed: () => onReport!(),
+                    child: const Text('Report'),
+                  ),
+                if (onBlock != null) ...[
+                  const SizedBox(height: AppSpace.sm),
+                  TextButton(
+                    onPressed: () => onBlock!(),
+                    child: Text(
+                      'Block',
+                      style: TextStyle(color: scheme.error),
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SwapPartnerSheet extends StatelessWidget {
+  const _SwapPartnerSheet({
+    required this.partner,
+    required this.proposing,
+    required this.pending,
+    this.onPropose,
+    this.onReport,
+    this.onBlock,
+  });
+
+  final SwapPartner partner;
+  final bool proposing;
+  final bool pending;
+  final Future<void> Function()? onPropose;
+  final Future<void> Function()? onReport;
+  final Future<void> Function()? onBlock;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottom),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.gutter,
+            AppSpace.md,
+            AppSpace.gutter,
+            AppSpace.xxl,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  PersonAvatar(
+                    name: partner.displayLabel,
+                    hue: partner.avatarHue,
+                    size: 52,
+                  ),
+                  const SizedBox(width: AppSpace.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          partner.displayLabel,
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: AppSpace.sm),
+                        StatusPill(
+                          label: pending ? 'Proposed' : 'Open to swap',
+                          color: pending
+                              ? scheme.onSurfaceVariant
+                              : scheme.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (partner.bio.isNotEmpty) ...[
+                const SizedBox(height: AppSpace.xl),
+                GroupedSection(
+                  header: 'Bio',
+                  children: [GroupedNote(partner.bio)],
+                ),
+              ],
+              const SizedBox(height: AppSpace.xl),
+              if (proposing)
+                const Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else if (onPropose != null)
+                FilledButton(
+                  onPressed: () => onPropose!(),
+                  child: const Text('Propose swap'),
+                )
+              else
+                OutlinedButton(
+                  onPressed: null,
+                  child: Text(pending ? 'Swap proposed' : 'Unavailable'),
+                ),
+              if (onReport != null || onBlock != null) ...[
+                const SizedBox(height: AppSpace.lg),
+                if (onReport != null)
+                  OutlinedButton(
+                    onPressed: () => onReport!(),
+                    child: const Text('Report'),
+                  ),
+                if (onBlock != null) ...[
+                  const SizedBox(height: AppSpace.sm),
+                  TextButton(
+                    onPressed: () => onBlock!(),
+                    child: Text(
+                      'Block',
+                      style: TextStyle(color: scheme.error),
+                    ),
+                  ),
+                ],
+              ],
             ],
           ),
         ),

@@ -9,6 +9,7 @@ import type {
   AdminTestSwap,
   AdminUserDetail,
   AdminUserRow,
+  AdminUserReport,
 } from "./admin-types";
 
 type ListParams = {
@@ -68,6 +69,13 @@ export function fetchAdminFeedback(params: ListParams) {
 export function fetchAdminSwaps(params: ListParams) {
   return apiRequest<AdminListResponse<AdminTestSwap>>(
     `/v1/admin/swaps?${listQuery(params)}`,
+    { token: params.token },
+  );
+}
+
+export function fetchAdminReports(params: ListParams) {
+  return apiRequest<AdminListResponse<AdminUserReport>>(
+    `/v1/admin/reports?${listQuery(params)}`,
     { token: params.token },
   );
 }

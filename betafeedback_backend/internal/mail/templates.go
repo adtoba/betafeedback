@@ -282,3 +282,22 @@ func TesterJoined(projectName, testerName, testerEmail, projectURL string) Messa
 		Footer:   "You're receiving this because someone joined your beta on BetaFeedback.",
 	}
 }
+
+// ContentReport notifies ops that a user reported another user.
+func ContentReport(reporterEmail, reportedEmail, reason, details string) Message {
+	sections := []Section{
+		{Label: "Reporter", Body: reporterEmail},
+		{Label: "Reported user", Body: reportedEmail},
+		{Label: "Reason", Body: reason},
+	}
+	if strings.TrimSpace(details) != "" {
+		sections = append(sections, Section{Label: "Details", Body: details})
+	}
+	return Message{
+		Subject:   "BetaFeedback content report",
+		Preheader: fmt.Sprintf("%s reported %s (%s)", reporterEmail, reportedEmail, reason),
+		Title:     "Content report",
+		Intro:     "A user reported another user. Review and act within 24 hours.",
+		Sections:  sections,
+	}
+}

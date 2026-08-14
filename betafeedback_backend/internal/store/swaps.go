@@ -79,6 +79,11 @@ func (s *Store) ListSwapPartners(ctx context.Context, viewerID, projectID, query
 		LEFT JOIN tester_ratings r ON r.tester_id = u.id
 		WHERE u.open_to_swap = true
 		  AND u.id <> $1
+		  AND NOT EXISTS (
+		        SELECT 1 FROM user_blocks b
+		        WHERE (b.blocker_id = $1 AND b.blocked_id = u.id)
+		           OR (b.blocker_id = u.id AND b.blocked_id = $1)
+		      )
 		  AND EXISTS (SELECT 1 FROM projects p WHERE p.creator_id = u.id)
 		  AND ($3 = '' OR (
 		       CASE WHEN position('@' in $3) > 0
@@ -187,6 +192,13 @@ func (s *Store) CreateTestSwap(ctx context.Context, fromUserID, fromProjectID, t
 	}
 	if toCreator == fromUserID {
 		return model.TestSwap{}, fmt.Errorf("%w: cannot swap with yourself", ErrConflict)
+	}
+	blocked, err := s.UsersBlocked(ctx, fromUserID, toCreator)
+	if err != nil {
+		return model.TestSwap{}, err
+	}
+	if blocked {
+		return model.TestSwap{}, fmt.Errorf("%w: this person is blocked", ErrForbidden)
 	}
 	if !toOpen {
 		return model.TestSwap{}, fmt.Errorf("%w: user is not open to swaps", ErrConflict)

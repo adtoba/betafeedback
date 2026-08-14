@@ -60,15 +60,15 @@ type SwapProject struct {
 
 // SwapPartner is a creator open to test-for-test swaps.
 type SwapPartner struct {
-	ID             string        `json:"id"`
-	Name           string        `json:"name"`
-	Email          string        `json:"email"`
-	AvatarHue      int           `json:"avatar_hue"`
-	TesterBio      string        `json:"tester_bio"`
-	RatingAvg      float64       `json:"rating_avg"`
-	RatingCount    int           `json:"rating_count"`
-	Projects       []SwapProject `json:"projects"`
-	SwapPending    bool          `json:"swap_pending,omitempty"`
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Email       string        `json:"email"`
+	AvatarHue   int           `json:"avatar_hue"`
+	TesterBio   string        `json:"tester_bio"`
+	RatingAvg   float64       `json:"rating_avg"`
+	RatingCount int           `json:"rating_count"`
+	Projects    []SwapProject `json:"projects"`
+	SwapPending bool          `json:"swap_pending,omitempty"`
 }
 
 // TestSwap is a paired reciprocal-testing proposal between two creators.
@@ -105,23 +105,23 @@ type TesterRating struct {
 }
 
 type Project struct {
-	ID               string     `json:"id"`
-	Name             string     `json:"name"`
-	Description      string     `json:"description"`
-	CreatorID        string     `json:"creator_id"`
-	CreatorName      string     `json:"creator_name"`
-	InviteCode       string     `json:"invite_code"`
-	InviteLink       string     `json:"invite_link"`
-	AppLink          *string        `json:"app_link"`
-	LogoURL          *string        `json:"logo_url"`
-	PlatformLinks        []PlatformLink `json:"platform_links"`
-	GoogleGroupJoinURL   *string        `json:"google_group_join_url,omitempty"`
-	CreatedAt            time.Time      `json:"created_at"`
-	TesterCount      int            `json:"tester_count"`
-	MemberCount      int            `json:"member_count"`
-	LatestFeedbackAt *time.Time     `json:"latest_feedback_at"`
-	LatestActivityAt *time.Time     `json:"latest_activity_at"`
-	Members          []Member       `json:"members,omitempty"`
+	ID                 string         `json:"id"`
+	Name               string         `json:"name"`
+	Description        string         `json:"description"`
+	CreatorID          string         `json:"creator_id"`
+	CreatorName        string         `json:"creator_name"`
+	InviteCode         string         `json:"invite_code"`
+	InviteLink         string         `json:"invite_link"`
+	AppLink            *string        `json:"app_link"`
+	LogoURL            *string        `json:"logo_url"`
+	PlatformLinks      []PlatformLink `json:"platform_links"`
+	GoogleGroupJoinURL *string        `json:"google_group_join_url,omitempty"`
+	CreatedAt          time.Time      `json:"created_at"`
+	TesterCount        int            `json:"tester_count"`
+	MemberCount        int            `json:"member_count"`
+	LatestFeedbackAt   *time.Time     `json:"latest_feedback_at"`
+	LatestActivityAt   *time.Time     `json:"latest_activity_at"`
+	Members            []Member       `json:"members,omitempty"`
 }
 
 // PlatformLink is a per-platform test/download link for a project's build,
@@ -245,4 +245,18 @@ type Subscription struct {
 	Seats           int     `json:"seats"`
 	ProjectLimit    *int    `json:"project_limit"`
 	ProjectsCreated int     `json:"projects_created"`
+}
+
+// UserReport is a safety report filed against another user.
+type UserReport struct {
+	ID             string    `json:"id"`
+	ReporterID     string    `json:"reporter_id"`
+	ReporterName   string    `json:"reporter_name"`
+	ReporterEmail  string    `json:"reporter_email"`
+	ReportedUserID string    `json:"reported_user_id"`
+	ReportedName   string    `json:"reported_name"`
+	ReportedEmail  string    `json:"reported_email"`
+	Reason         string    `json:"reason"`
+	Details        string    `json:"details"`
+	CreatedAt      time.Time `json:"created_at"`
 }

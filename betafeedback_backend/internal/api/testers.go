@@ -156,7 +156,11 @@ func (s *Server) createTesterInvite(w http.ResponseWriter, r *http.Request, user
 			writeError(w, http.StatusNotFound, "tester not found")
 			return
 		}
-        if errors.Is(err, store.ErrConflict) {
+		if errors.Is(err, store.ErrForbidden) {
+			writeError(w, http.StatusForbidden, "this person is blocked")
+			return
+		}
+		if errors.Is(err, store.ErrConflict) {
 			writeError(w, http.StatusConflict, conflictMessage(err))
 			return
 		}
@@ -223,7 +227,7 @@ func (s *Server) respondTesterInvite(w http.ResponseWriter, r *http.Request, use
 			writeError(w, http.StatusForbidden, "not your invitation")
 			return
 		}
-        if errors.Is(err, store.ErrConflict) {
+		if errors.Is(err, store.ErrConflict) {
 			writeError(w, http.StatusConflict, conflictMessage(err))
 			return
 		}
@@ -278,7 +282,7 @@ func (s *Server) rateTester(w http.ResponseWriter, r *http.Request, userID strin
 
 	rating, err := s.store.RateTester(r.Context(), projectID, userID, testerID, req.Score, comment)
 	if err != nil {
-        if errors.Is(err, store.ErrConflict) {
+		if errors.Is(err, store.ErrConflict) {
 			writeError(w, http.StatusConflict, conflictMessage(err))
 			return
 		}

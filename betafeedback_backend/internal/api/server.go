@@ -66,6 +66,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/auth/apple", s.authApple)
 
 	mux.HandleFunc("GET /v1/me", s.requireAuth(s.getMe))
+	mux.HandleFunc("DELETE /v1/me", s.requireAuth(s.deleteMe))
 	mux.HandleFunc("PUT /v1/me/preferences", s.requireAuth(s.updatePreferences))
 	mux.HandleFunc("PUT /v1/me/tester-profile", s.requireAuth(s.updateTesterProfile))
 	mux.HandleFunc("GET /v1/me/tester-invites", s.requireAuth(s.listMyTesterInvites))
@@ -83,6 +84,9 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("GET /v1/testers", s.requireAuth(s.listTesters))
 	mux.HandleFunc("GET /v1/testers/top", s.requireAuth(s.listTopTesters))
+	mux.HandleFunc("POST /v1/users/{id}/report", s.requireAuth(s.reportUser))
+	mux.HandleFunc("POST /v1/users/{id}/block", s.requireAuth(s.blockUser))
+	mux.HandleFunc("DELETE /v1/users/{id}/block", s.requireAuth(s.unblockUser))
 
 	mux.HandleFunc("GET /v1/projects", s.requireAuth(s.listProjects))
 	mux.HandleFunc("POST /v1/projects", s.requireAuth(s.createProject))
@@ -133,6 +137,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/admin/projects/{id}", s.requireAdmin(s.adminGetProject))
 	mux.HandleFunc("GET /v1/admin/feedback", s.requireAdmin(s.adminListFeedback))
 	mux.HandleFunc("GET /v1/admin/swaps", s.requireAdmin(s.adminListSwaps))
+	mux.HandleFunc("GET /v1/admin/reports", s.requireAdmin(s.adminListReports))
 
 	// RevenueCat billing webhooks (auth via REVENUECAT_WEBHOOK_AUTH header).
 	mux.HandleFunc("POST /v1/webhooks/revenuecat", s.revenueCatWebhook)

@@ -49,6 +49,11 @@ func (s *Store) ListOpenTesters(ctx context.Context, viewerID, projectID, query 
 		LEFT JOIN tester_ratings r ON r.tester_id = u.id
 		WHERE u.open_to_test = true
 		  AND u.id <> $1
+		  AND NOT EXISTS (
+		        SELECT 1 FROM user_blocks b
+		        WHERE (b.blocker_id = $1 AND b.blocked_id = u.id)
+		           OR (b.blocker_id = u.id AND b.blocked_id = $1)
+		      )
 		  AND ($3 = '' OR (
 		       CASE WHEN position('@' in $3) > 0
 		            THEN u.email LIKE '%' || $3 || '%'
@@ -113,6 +118,11 @@ func (s *Store) ListTopTesters(ctx context.Context, viewerID string, limit int) 
 		LEFT JOIN tester_ratings r ON r.tester_id = u.id
 		WHERE u.open_to_test = true
 		  AND u.id <> $1
+		  AND NOT EXISTS (
+		        SELECT 1 FROM user_blocks b
+		        WHERE (b.blocker_id = $1 AND b.blocked_id = u.id)
+		           OR (b.blocker_id = u.id AND b.blocked_id = $1)
+		      )
 		GROUP BY u.id
 		HAVING COUNT(r.id) > 0
 		ORDER BY rating_avg DESC, rating_count DESC, completed_count DESC
@@ -169,6 +179,14 @@ func (s *Store) CreateTesterInvitation(ctx context.Context, projectID, fromUserI
 	}
 	if already {
 		return model.TesterInvitation{}, fmt.Errorf("%w: user is already a member", ErrConflict)
+	}
+
+	blocked, err := s.UsersBlocked(ctx, fromUserID, toUserID)
+	if err != nil {
+		return model.TesterInvitation{}, err
+	}
+	if blocked {
+		return model.TesterInvitation{}, fmt.Errorf("%w: this person is blocked", ErrForbidden)
 	}
 
 	row := s.pool.QueryRow(ctx, `

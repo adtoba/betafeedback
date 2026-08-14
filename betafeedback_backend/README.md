@@ -71,6 +71,10 @@ are logged to stdout (useful locally with `OTP_DEBUG=true`).
 | `POST /v1/auth/google` | exchange Google ID token for JWT |
 | `POST /v1/auth/apple` | exchange Apple identity token for JWT |
 | `GET /v1/me` | current user |
+| `DELETE /v1/me` | delete account and personal data |
+| `POST /v1/users/{id}/report` | report a user |
+| `POST /v1/users/{id}/block` | block a user |
+| `DELETE /v1/users/{id}/block` | unblock a user |
 | `GET /v1/projects` | projects the caller belongs to |
 | `POST /v1/projects` | create (caller becomes creator) |
 | `GET /v1/projects/{id}` | project + members (members only) |
