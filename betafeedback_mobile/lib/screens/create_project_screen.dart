@@ -13,6 +13,7 @@ import '../theme/app_tokens.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/grouped_list.dart';
 import '../widgets/project_logo.dart';
+import '../utils/store_compliance.dart';
 import 'find_testers_screen.dart';
 
 class CreateProjectScreen extends StatefulWidget {
@@ -23,11 +24,11 @@ class CreateProjectScreen extends StatefulWidget {
 }
 
 class _CreateProjectScreenState extends State<CreateProjectScreen> {
-  static const _steps = [
+  static const _allSteps = [
     _StepMeta(
       label: 'Basics',
       title: 'Project details',
-      subtitle: 'Give your beta a clear name and short description.',
+      subtitle: 'Give your project a clear name and short description.',
     ),
     _StepMeta(
       label: 'Platforms',
@@ -36,14 +37,19 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     ),
     _StepMeta(
       label: 'Links',
-      title: 'Test links',
+      title: 'App links',
       subtitle: 'TestFlight, Play Store, or web URLs — all optional.',
     ),
   ];
 
+  List<_StepMeta> get _steps => supportsBetaDistributionUi
+      ? _allSteps
+      : _allSteps.sublist(0, 1);
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _memberNotesController = TextEditingController();
 
   int _step = 0;
   bool _submitting = false;
@@ -58,6 +64,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
+    _memberNotesController.dispose();
     for (final controller in _linkControllers.values) {
       controller.dispose();
     }
@@ -77,8 +84,9 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   }
 
   List<PlatformLink> _collectPlatformLinks() {
+    if (!supportsBetaDistributionUi) return const [];
     final links = <PlatformLink>[];
-    for (final platform in kProjectPlatforms) {
+    for (final platform in availableProjectPlatforms) {
       if (!_selectedPlatforms.contains(platform.id)) continue;
       final url = _linkControllers[platform.id]?.text.trim() ?? '';
       if (url.isEmpty) continue;
@@ -131,7 +139,9 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
       final project = await AppScope.of(context).createProject(
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
-        googleGroupJoinUrl: _selectedPlatforms.contains('android')
+        memberNotes: _memberNotesController.text.trim(),
+        googleGroupJoinUrl: supportsAndroidDistributionUi &&
+                _selectedPlatforms.contains('android')
             ? _googleGroupController.text.trim()
             : null,
         platformLinks: _collectPlatformLinks(),
@@ -237,6 +247,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                             0 => _BasicsStep(
                               nameController: _nameController,
                               descriptionController: _descriptionController,
+                              memberNotesController: _memberNotesController,
                               logoBytes: _logoBytes,
                               onPickLogo: _pickLogo,
                               onClearLogo: _clearLogo,
@@ -369,6 +380,7 @@ class _BasicsStep extends StatelessWidget {
   const _BasicsStep({
     required this.nameController,
     required this.descriptionController,
+    required this.memberNotesController,
     required this.logoBytes,
     required this.onPickLogo,
     required this.onClearLogo,
@@ -376,6 +388,7 @@ class _BasicsStep extends StatelessWidget {
 
   final TextEditingController nameController;
   final TextEditingController descriptionController;
+  final TextEditingController memberNotesController;
   final Uint8List? logoBytes;
   final VoidCallback onPickLogo;
   final VoidCallback onClearLogo;
@@ -493,13 +506,25 @@ class _BasicsStep extends StatelessWidget {
             controller: descriptionController,
             decoration: const InputDecoration(
               labelText: 'Description',
-              hintText: 'What is this beta about?',
+              hintText: 'What is this project about?',
               alignLabelWithHint: true,
             ),
             maxLines: 3,
             validator: (v) => v == null || v.trim().isEmpty
                 ? 'Description is required'
                 : null,
+          ),
+          const SizedBox(height: AppSpace.md),
+          TextFormField(
+            controller: memberNotesController,
+            decoration: const InputDecoration(
+              labelText: 'Getting started notes (optional)',
+              hintText:
+                  'Download links, install steps, staging URLs — '
+                  'visible to everyone who joins.',
+              alignLabelWithHint: true,
+            ),
+            maxLines: 5,
           ),
         ],
       ),
@@ -524,7 +549,7 @@ class _PlatformsStep extends StatelessWidget {
       header: 'Where testers will run it',
       footer: 'Pick as many as apply — you can change this later.',
       children: [
-        for (final platform in kProjectPlatforms)
+        for (final platform in availableProjectPlatforms)
           GroupedListTile(
             icon: platform.icon,
             title: platform.label,
@@ -554,7 +579,7 @@ class _LinksStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selected = kProjectPlatforms
+    final selected = availableProjectPlatforms
         .where((p) => selectedPlatforms.contains(p.id))
         .toList();
 
@@ -588,7 +613,8 @@ class _LinksStep extends StatelessWidget {
               ),
               validator: validateUrl,
             ),
-            if (selected[i].id == 'android') ...[
+            if (supportsAndroidDistributionUi &&
+                selected[i].id == 'android') ...[
               const SizedBox(height: AppSpace.md),
               TextFormField(
                 controller: googleGroupController,

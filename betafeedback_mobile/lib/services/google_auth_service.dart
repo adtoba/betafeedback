@@ -29,11 +29,7 @@ class GoogleAuthService {
       final auth = await account.authentication;
       final idToken = auth.idToken;
       if (idToken == null || idToken.isEmpty) {
-        throw StateError(
-          'Google did not return an ID token. '
-          'On Android, ensure GOOGLE_CLIENT_ID is set on the backend. '
-          'On iOS, configure GOOGLE_IOS_CLIENT_ID and Info.plist URL schemes.',
-        );
+        throw StateError(_missingIdTokenMessage());
       }
       return idToken;
     } on PlatformException catch (e) {
@@ -111,11 +107,28 @@ class GoogleAuthService {
     return (webClientId, iosClientId);
   }
 
+  static String _missingIdTokenMessage() {
+    if (!kIsWeb && Platform.isIOS) {
+      return 'Google did not return an ID token. Configure GOOGLE_IOS_CLIENT_ID '
+          'and the reversed client ID URL scheme in Info.plist.';
+    }
+    if (!kIsWeb && Platform.isAndroid) {
+      return 'Google did not return an ID token. Ensure GOOGLE_CLIENT_ID is '
+          'set on the backend.';
+    }
+    return 'Google did not return an ID token. Check your Google OAuth client '
+        'configuration.';
+  }
+
   static String _describePlatformException(PlatformException e) {
     final details = '${e.message ?? ''} ${e.details ?? ''}'.toLowerCase();
     if (details.contains('10:') ||
         details.contains('apiexception: 10') ||
         details.contains('developer_error')) {
+      if (!kIsWeb && Platform.isIOS) {
+        return 'Google Sign-In failed (Developer Error). Check that the iOS '
+            'OAuth client ID and URL scheme are configured correctly.';
+      }
       return 'Google Sign-In failed (Developer Error / code 10). '
           'The signing certificate SHA-1 for this install is not registered '
           'on the Android OAuth client. For Play installs, add the '
@@ -123,8 +136,11 @@ class GoogleAuthService {
           '(or Google Cloud Credentials), then wait a few minutes.';
     }
     if (details.contains('12500')) {
-      return 'Google Sign-In failed (code 12500). Check OAuth client IDs '
-          'and that Google Play Services is up to date.';
+      if (!kIsWeb && Platform.isAndroid) {
+        return 'Google Sign-In failed (code 12500). Check OAuth client IDs '
+            'and that Google Play Services is up to date.';
+      }
+      return 'Google Sign-In failed. Check your OAuth client IDs and try again.';
     }
     return 'Google Sign-In failed: ${e.code} ${e.message ?? e.details ?? e}';
   }

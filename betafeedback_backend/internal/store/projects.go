@@ -26,12 +26,34 @@ func decodePlatformLinks(raw []byte) ([]model.PlatformLink, error) {
 	return links, nil
 }
 
+const projectReturnCols = `
+	id::text, name, description, creator_id::text, invite_code, app_link,
+	platform_links, logo_url, google_group_join_url, member_notes, created_at`
+
+func scanProjectFields(p *model.Project, plRaw *[]byte) []any {
+	return []any{
+		&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink,
+		plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.MemberNotes, &p.CreatedAt,
+	}
+}
+
+func (s *Store) finishProject(p model.Project, plRaw []byte) (model.Project, error) {
+	links, err := decodePlatformLinks(plRaw)
+	if err != nil {
+		return model.Project{}, err
+	}
+	p.PlatformLinks = links
+	p.InviteLink = s.InviteLink(p.InviteCode)
+	return p, nil
+}
+
 // CreateProject inserts a project and registers the creator as a member.
 func (s *Store) CreateProject(
 	ctx context.Context,
 	creatorID, name, description, inviteCode string,
 	appLink, googleGroupJoinURL *string,
 	platformLinks []model.PlatformLink,
+	memberNotes string,
 ) (model.Project, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -50,15 +72,18 @@ func (s *Store) CreateProject(
 	var p model.Project
 	var plRaw []byte
 	err = tx.QueryRow(ctx, `
-		INSERT INTO projects (name, description, creator_id, invite_code, app_link, platform_links, google_group_join_url)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, google_group_join_url, created_at
-	`, name, description, creatorID, inviteCode, appLink, string(linksJSON), googleGroupJoinURL).
-		Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt)
+		INSERT INTO projects (
+			name, description, creator_id, invite_code, app_link,
+			platform_links, google_group_join_url, member_notes
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING `+projectReturnCols+`
+	`, name, description, creatorID, inviteCode, appLink, string(linksJSON), googleGroupJoinURL, memberNotes).
+		Scan(scanProjectFields(&p, &plRaw)...)
 	if err != nil {
 		return model.Project{}, err
 	}
-	if p.PlatformLinks, err = decodePlatformLinks(plRaw); err != nil {
+	if p, err = s.finishProject(p, plRaw); err != nil {
 		return model.Project{}, err
 	}
 
@@ -72,7 +97,6 @@ func (s *Store) CreateProject(
 	if err = tx.Commit(ctx); err != nil {
 		return model.Project{}, err
 	}
-	p.InviteLink = s.InviteLink(p.InviteCode)
 	return p, nil
 }
 
@@ -81,7 +105,8 @@ func (s *Store) CreateProject(
 func (s *Store) ListProjectsForUser(ctx context.Context, userID string) ([]model.Project, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT p.id::text, p.name, p.description, p.creator_id::text, cu.name,
-		       p.invite_code, p.app_link, p.platform_links, p.logo_url, p.google_group_join_url, p.created_at,
+		       p.invite_code, p.app_link, p.platform_links, p.logo_url,
+		       p.google_group_join_url, p.member_notes, p.created_at,
 		       (SELECT count(*) FROM project_members t WHERE t.project_id = p.id AND t.role = 'tester'),
 		       (SELECT count(*) FROM project_members a WHERE a.project_id = p.id),
 		       (SELECT max(created_at) FROM feedback f WHERE f.project_id = p.id),
@@ -105,14 +130,15 @@ func (s *Store) ListProjectsForUser(ctx context.Context, userID string) ([]model
 		var p model.Project
 		var plRaw []byte
 		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.CreatorName,
-			&p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt,
+			&p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.MemberNotes, &p.CreatedAt,
 			&p.TesterCount, &p.MemberCount, &p.LatestFeedbackAt, &p.LatestActivityAt); err != nil {
 			return nil, err
 		}
-		if p.PlatformLinks, err = decodePlatformLinks(plRaw); err != nil {
+		if finished, err := s.finishProject(p, plRaw); err != nil {
 			return nil, err
+		} else {
+			p = finished
 		}
-		p.InviteLink = s.InviteLink(p.InviteCode)
 		projects = append(projects, p)
 	}
 	return projects, rows.Err()
@@ -123,19 +149,18 @@ func (s *Store) GetProject(ctx context.Context, id string) (model.Project, error
 	var p model.Project
 	var plRaw []byte
 	err := s.pool.QueryRow(ctx, `
-		SELECT id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, google_group_join_url, created_at
+		SELECT `+projectReturnCols+`
 		FROM projects WHERE id = $1
-	`, id).Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt)
+	`, id).Scan(scanProjectFields(&p, &plRaw)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Project{}, ErrNotFound
 	}
 	if err != nil {
 		return model.Project{}, err
 	}
-	if p.PlatformLinks, err = decodePlatformLinks(plRaw); err != nil {
+	if p, err = s.finishProject(p, plRaw); err != nil {
 		return model.Project{}, err
 	}
-	p.InviteLink = s.InviteLink(p.InviteCode)
 
 	members, err := s.ListMembers(ctx, id)
 	if err != nil {
@@ -160,19 +185,32 @@ func (s *Store) UpdateProjectLogo(ctx context.Context, id string, logoURL *strin
 	var plRaw []byte
 	err := s.pool.QueryRow(ctx, `
 		UPDATE projects SET logo_url = $2 WHERE id = $1
-		RETURNING id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, google_group_join_url, created_at
-	`, id, logoURL).Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt)
+		RETURNING `+projectReturnCols+`
+	`, id, logoURL).Scan(scanProjectFields(&p, &plRaw)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Project{}, ErrNotFound
 	}
 	if err != nil {
 		return model.Project{}, err
 	}
-	if p.PlatformLinks, err = decodePlatformLinks(plRaw); err != nil {
+	return s.finishProject(p, plRaw)
+}
+
+// UpdateProjectMemberNotes sets the free-form notes shown to all project members.
+func (s *Store) UpdateProjectMemberNotes(ctx context.Context, id, notes string) (model.Project, error) {
+	var p model.Project
+	var plRaw []byte
+	err := s.pool.QueryRow(ctx, `
+		UPDATE projects SET member_notes = $2 WHERE id = $1
+		RETURNING `+projectReturnCols+`
+	`, id, notes).Scan(scanProjectFields(&p, &plRaw)...)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.Project{}, ErrNotFound
+	}
+	if err != nil {
 		return model.Project{}, err
 	}
-	p.InviteLink = s.InviteLink(p.InviteCode)
-	return p, nil
+	return s.finishProject(p, plRaw)
 }
 
 // InviteInfo returns the public summary for an invite code, or ErrNotFound if
@@ -331,20 +369,16 @@ func (s *Store) UpdateProjectDistribution(
 		UPDATE projects
 		SET google_group_join_url = $2, platform_links = $3
 		WHERE id = $1
-		RETURNING id::text, name, description, creator_id::text, invite_code, app_link, platform_links, logo_url, google_group_join_url, created_at
+		RETURNING `+projectReturnCols+`
 	`, id, googleGroupJoinURL, string(linksJSON)).
-		Scan(&p.ID, &p.Name, &p.Description, &p.CreatorID, &p.InviteCode, &p.AppLink, &plRaw, &p.LogoURL, &p.GoogleGroupJoinURL, &p.CreatedAt)
+		Scan(scanProjectFields(&p, &plRaw)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Project{}, ErrNotFound
 	}
 	if err != nil {
 		return model.Project{}, err
 	}
-	if p.PlatformLinks, err = decodePlatformLinks(plRaw); err != nil {
-		return model.Project{}, err
-	}
-	p.InviteLink = s.InviteLink(p.InviteCode)
-	return p, nil
+	return s.finishProject(p, plRaw)
 }
 
 // ListTesterEmails returns emails for testers on a project.

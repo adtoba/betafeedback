@@ -5,6 +5,7 @@ import '../models/subscription.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
+import '../utils/store_compliance.dart';
 import 'app_header.dart';
 import 'status_pill.dart';
 
@@ -156,9 +157,11 @@ class PlanPickerSheet extends StatelessWidget {
                           await onManage!();
                         } else if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Text(
-                                'Cancel Pro in your App Store or Play Store subscriptions.',
+                                supportsAndroidDistributionUi
+                                    ? 'Cancel Pro in your App Store or Play Store subscriptions.'
+                                    : 'Cancel Pro in your App Store subscriptions.',
                               ),
                               behavior: SnackBarBehavior.floating,
                             ),

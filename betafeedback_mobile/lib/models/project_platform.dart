@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_icons.dart';
+import '../utils/store_compliance.dart';
 
 /// A platform a project can target. [id] is the canonical value persisted in a
 /// [PlatformLink], while [label], [icon], and [hint] drive the UI.
@@ -57,6 +58,14 @@ const List<ProjectPlatform> kProjectPlatforms = [
     hint: 'Download or build link',
   ),
 ];
+
+/// Platforms shown when creating a project. Android is omitted on iOS builds.
+List<ProjectPlatform> get availableProjectPlatforms {
+  if (!supportsAndroidDistributionUi) {
+    return kProjectPlatforms.where((p) => p.id != 'android').toList();
+  }
+  return kProjectPlatforms;
+}
 
 /// Looks up the catalog entry for a stored platform id, or null if unknown.
 ProjectPlatform? platformById(String id) {

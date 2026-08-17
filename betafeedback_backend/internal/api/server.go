@@ -68,6 +68,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/me", s.requireAuth(s.getMe))
 	mux.HandleFunc("DELETE /v1/me", s.requireAuth(s.deleteMe))
 	mux.HandleFunc("PUT /v1/me/preferences", s.requireAuth(s.updatePreferences))
+	mux.HandleFunc("PUT /v1/me/profile", s.requireAuth(s.updateProfile))
 	mux.HandleFunc("PUT /v1/me/tester-profile", s.requireAuth(s.updateTesterProfile))
 	mux.HandleFunc("GET /v1/me/tester-invites", s.requireAuth(s.listMyTesterInvites))
 	mux.HandleFunc("POST /v1/me/tester-invites/{inviteId}/accept", s.requireAuth(s.acceptTesterInvite))

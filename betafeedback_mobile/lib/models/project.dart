@@ -33,6 +33,7 @@ class Project {
     this.logoUrl,
     this.platformLinks = const [],
     this.googleGroupJoinUrl,
+    this.memberNotes = '',
     this.members = const [],
     this.feedback = const [],
     this.structuredBugs = const [],
@@ -64,6 +65,9 @@ class Project {
 
   /// Optional Google Group URL for Play closed-testing allowlists.
   final String? googleGroupJoinUrl;
+
+  /// Free-form notes for members — links, install steps, and other info.
+  final String memberNotes;
   final DateTime createdAt;
 
   /// Populated on detail loads; empty for list summaries.
@@ -117,6 +121,7 @@ class Project {
               .toList() ??
           const <PlatformLink>[],
       googleGroupJoinUrl: json['google_group_join_url'] as String?,
+      memberNotes: json['member_notes'] as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
       members: members,
       testerCount: (json['tester_count'] as num?)?.toInt() ?? 0,
@@ -138,6 +143,7 @@ class Project {
     List<Release>? releases,
     int? testerCount,
     int? memberCount,
+    String? memberNotes,
     DateTime? latestFeedbackAt,
     DateTime? latestActivityAt,
   }) {
@@ -153,6 +159,7 @@ class Project {
       logoUrl: logoUrl,
       platformLinks: platformLinks,
       googleGroupJoinUrl: googleGroupJoinUrl,
+      memberNotes: memberNotes ?? this.memberNotes,
       createdAt: createdAt,
       members: members ?? this.members,
       feedback: feedback ?? this.feedback,

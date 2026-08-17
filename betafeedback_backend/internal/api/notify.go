@@ -171,3 +171,22 @@ func (s *Server) notifyTesterJoined(ctx context.Context, project model.Project, 
 		s.logger.Error("send tester joined email", "err", err, "to", creator.Email)
 	}
 }
+
+func (s *Server) emailTesterWelcome(ctx context.Context, tester model.User, project model.Project) {
+	linkSections := mail.ProjectBuildLinkSections(project)
+	msg := mail.TesterWelcome(
+		project.Name,
+		s.mailer.ProjectURL(project.ID),
+		linkSections,
+		project.MemberNotes,
+	)
+	msg.To = tester.Email
+	if err := s.mailer.SendMessage(ctx, msg); err != nil {
+		s.logger.Error("send tester welcome email", "err", err, "to", tester.Email)
+	}
+}
+
+func (s *Server) onTesterJoined(ctx context.Context, project model.Project, tester model.User) {
+	s.notifyTesterJoined(ctx, project, tester)
+	s.emailTesterWelcome(ctx, tester, project)
+}

@@ -32,6 +32,8 @@ import 'post_release_sheet.dart';
 import 'test_plan_screen.dart';
 import 'test_build_android_screen.dart';
 import 'test_build_ios_screen.dart';
+import '../utils/store_compliance.dart';
+import '../widgets/member_notes_sheet.dart';
 import '../widgets/rate_tester_sheet.dart';
 import '../widgets/android_beta_install_sheet.dart';
 import '../utils/android_beta_install.dart';
@@ -59,7 +61,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         setState(() => _loaded = true);
         final project = appState.projectById(widget.projectId);
         if (project != null &&
-            project.testerIds.contains(appState.currentUser.id)) {
+            project.testerIds.contains(appState.currentUser.id) &&
+            supportsAndroidDistributionUi) {
           await showAndroidBetaInstallSheet(
             context,
             project: project,
@@ -168,7 +171,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                           project.id,
                           'feedback',
                         );
-                      case 'android_testing':
+                      case 'android_testing' when supportsAndroidDistributionUi:
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => TestBuildAndroidScreen(
@@ -179,7 +182,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                             ),
                           ),
                         );
-                      case 'ios_testing':
+                      case 'ios_testing' when supportsBetaDistributionUi:
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => TestBuildIosScreen(
@@ -207,20 +210,22 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                           label: 'Find testers',
                         ),
                       ),
-                      const PopupMenuItem(
-                        value: 'android_testing',
-                        child: _MenuRow(
-                          icon: AppIcons.platformAndroid,
-                          label: 'Android closed testing',
+                      if (supportsAndroidDistributionUi)
+                        const PopupMenuItem(
+                          value: 'android_testing',
+                          child: _MenuRow(
+                            icon: AppIcons.platformAndroid,
+                            label: 'Android closed testing',
+                          ),
                         ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'ios_testing',
-                        child: _MenuRow(
-                          icon: AppIcons.platformIos,
-                          label: 'iOS TestFlight',
+                      if (supportsBetaDistributionUi)
+                        const PopupMenuItem(
+                          value: 'ios_testing',
+                          child: _MenuRow(
+                            icon: AppIcons.platformIos,
+                            label: 'iOS TestFlight',
+                          ),
                         ),
-                      ),
                     ],
                     if (canStructureOrFix) ...[
                       if (isCreator) const PopupMenuDivider(),
@@ -262,6 +267,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                       appState: appState,
                       isCreator: isCreator,
                       isTester: isTester,
+                      onOpenMemberNotes: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MemberNotesScreen(
+                            project: project,
+                            canEdit: isCreator,
+                          ),
+                        ),
+                      ),
                       onViewBugs: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) =>
@@ -533,7 +546,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                     GroupedListTile(
                       icon: AppIcons.mail,
                       title: 'Copy tester emails',
-                      subtitle: 'For Play Console or Google Group',
+                      subtitle: supportsAndroidDistributionUi
+                          ? 'For Play Console or Google Group'
+                          : 'Share with your team',
                       onTap: () => _copyTesterEmails(context, appState, project),
                     ),
                 ],
@@ -559,6 +574,7 @@ class _ProjectHeader extends StatelessWidget {
     required this.appState,
     required this.isCreator,
     required this.isTester,
+    required this.onOpenMemberNotes,
     required this.onViewBugs,
     required this.onViewActivity,
     required this.onViewTestPlan,
@@ -568,6 +584,7 @@ class _ProjectHeader extends StatelessWidget {
   final AppState appState;
   final bool isCreator;
   final bool isTester;
+  final VoidCallback onOpenMemberNotes;
   final VoidCallback onViewBugs;
   final VoidCallback onViewActivity;
   final VoidCallback onViewTestPlan;
@@ -598,14 +615,25 @@ class _ProjectHeader extends StatelessWidget {
         .where((b) => b.status == BugStatus.suggested)
         .length;
     final activityCount = appState.activityForProject(project.id).length;
-    final links = _links;
-    final showAndroidTile =
-        isCreator || (isTester && projectHasAndroidBetaInstall(project));
+    final links = _links.where((l) {
+      if (!supportsAndroidDistributionUi && l.label == 'Android') {
+        return false;
+      }
+      if (!supportsBetaDistributionUi && l.label == 'iOS') {
+        return false;
+      }
+      return true;
+    }).toList();
+    final showAndroidTile = supportsAndroidDistributionUi &&
+        (isCreator || (isTester && projectHasAndroidBetaInstall(project)));
     final iosUrl = project.platformLinks
         .where((l) => l.platform == 'ios' && l.url.trim().isNotEmpty)
         .map((l) => l.url.trim())
         .firstOrNull;
-    final showIosTile = isCreator || (isTester && iosUrl != null);
+    final showIosTile = supportsBetaDistributionUi &&
+        (isCreator || (isTester && iosUrl != null));
+    final showDistributionSection =
+        links.isNotEmpty || showAndroidTile || showIosTile;
     final theme = Theme.of(context);
     final tones = AppTones.of(context);
     final reportCount = project.feedback
@@ -647,12 +675,23 @@ class _ProjectHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpace.xxl),
-        if (links.isNotEmpty || showAndroidTile || showIosTile) ...[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+          child: MemberNotesPreview(
+            notes: project.memberNotes,
+            canEdit: isCreator,
+            onTap: onOpenMemberNotes,
+          ),
+        ),
+        const SizedBox(height: AppSpace.xxl),
+        if (showDistributionSection) ...[
           GroupedSection(
-            header: 'Test builds',
+            header: supportsBetaDistributionUi ? 'Test builds' : 'Links',
             children: [
               for (final link in links)
-                if (link.label == 'Android' && showAndroidTile)
+                if (supportsBetaDistributionUi &&
+                    link.label == 'Android' &&
+                    showAndroidTile)
                   GroupedListTile(
                     icon: link.icon,
                     title: 'Android',
@@ -670,7 +709,9 @@ class _ProjectHeader extends StatelessWidget {
                       ),
                     ),
                   )
-                else if (link.label == 'iOS' && showIosTile)
+                else if (supportsBetaDistributionUi &&
+                    link.label == 'iOS' &&
+                    showIosTile)
                   GroupedListTile(
                     icon: link.icon,
                     title: 'iOS',

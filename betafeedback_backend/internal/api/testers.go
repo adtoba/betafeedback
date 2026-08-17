@@ -240,7 +240,7 @@ func (s *Server) respondTesterInvite(w http.ResponseWriter, r *http.Request, use
 		if err == nil {
 			project, err := s.store.GetProject(r.Context(), inv.ProjectID)
 			if err == nil {
-				s.notifyTesterJoined(r.Context(), project, tester)
+				s.onTesterJoined(r.Context(), project, tester)
 			}
 		}
 	}
