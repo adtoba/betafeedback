@@ -25,6 +25,7 @@ type createProjectRequest struct {
 	AppLink            string               `json:"app_link"`
 	GoogleGroupJoinURL string               `json:"google_group_join_url"`
 	PlatformLinks      []model.PlatformLink `json:"platform_links"`
+	MemberNotes        string               `json:"member_notes"`
 }
 
 // sanitizePlatformLinks trims and drops empty or duplicate-platform entries so
@@ -72,6 +73,7 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request, userID st
 		generateInviteCode(name), optionalString(req.AppLink),
 		optionalString(req.GoogleGroupJoinURL),
 		sanitizePlatformLinks(req.PlatformLinks),
+		strings.TrimSpace(req.MemberNotes),
 	)
 	if err != nil {
 		s.serverError(w, "create project", err)
@@ -97,7 +99,10 @@ type updateProjectRequest struct {
 	LogoURL            *string              `json:"logo_url"`
 	GoogleGroupJoinURL *string              `json:"google_group_join_url"`
 	PlatformLinks      []model.PlatformLink `json:"platform_links"`
+	MemberNotes        *string              `json:"member_notes"`
 }
+
+const maxMemberNotesLen = 8000
 
 func validProjectLogoURL(projectID, url string) bool {
 	if url == "" {
@@ -135,6 +140,19 @@ func (s *Server) updateProject(w http.ResponseWriter, r *http.Request, userID st
 		}
 		if _, err := s.store.UpdateProjectLogo(r.Context(), id, stored); err != nil {
 			s.serverError(w, "update project logo", err)
+			return
+		}
+	}
+
+	if req.MemberNotes != nil {
+		notes := strings.TrimSpace(*req.MemberNotes)
+		if len(notes) > maxMemberNotesLen {
+			writeError(w, http.StatusBadRequest,
+				fmt.Sprintf("member_notes must be %d characters or fewer", maxMemberNotesLen))
+			return
+		}
+		if _, err := s.store.UpdateProjectMemberNotes(r.Context(), id, notes); err != nil {
+			s.serverError(w, "update project notes", err)
 			return
 		}
 	}

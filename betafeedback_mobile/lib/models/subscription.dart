@@ -64,12 +64,12 @@ extension SubscriptionPlanInfo on SubscriptionPlan {
 
   String get tagline => switch (this) {
     SubscriptionPlan.free => 'For trying things out',
-    SubscriptionPlan.pro => 'For builders running serious betas',
+    SubscriptionPlan.pro => 'For teams shipping multiple products',
   };
 
   List<String> get features => switch (this) {
     SubscriptionPlan.free => const [
-      '1 project with full beta tools',
+      '1 project with full feedback tools',
       'Unlimited testers & developers',
       'AI bug structuring',
       'CSV export & email notifications',

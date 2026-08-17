@@ -43,7 +43,7 @@ func (s *Server) joinInvite(w http.ResponseWriter, r *http.Request, userID strin
 	if newlyJoined {
 		tester, err := s.store.GetUser(r.Context(), userID)
 		if err == nil {
-			s.notifyTesterJoined(r.Context(), project, tester)
+			s.onTesterJoined(r.Context(), project, tester)
 		}
 	}
 	writeJSON(w, http.StatusOK, project)

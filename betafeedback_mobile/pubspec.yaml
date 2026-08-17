@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.5+15
+version: 1.0.7+19
 
 environment:
   sdk: ^3.11.5
@@ -44,7 +44,6 @@ dependencies:
   device_info_plus: ^11.1.0
   image_picker: ^1.1.2
   url_launcher: ^6.3.1
-  lucide_icons: ^0.257.0
   share_plus: ^10.1.4
   purchases_flutter: ^10.4.1
   flutter_dotenv: ^6.0.1
@@ -93,6 +92,12 @@ flutter:
     - .env
     - .env.example
     - assets/brand/
+    - assets/fonts/lucide.ttf
+
+  fonts:
+    - family: Lucide
+      fonts:
+        - asset: assets/fonts/lucide.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

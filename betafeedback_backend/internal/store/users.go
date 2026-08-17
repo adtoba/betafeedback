@@ -59,6 +59,23 @@ func (s *Store) attachTesterStats(ctx context.Context, u *model.User) error {
 	`, u.ID).Scan(&u.TesterRatingAvg, &u.TesterRatingCount)
 }
 
+// SetUserName updates the signed-in user's display name.
+func (s *Store) SetUserName(ctx context.Context, userID, name string) (model.User, error) {
+	row := s.pool.QueryRow(ctx, `
+		UPDATE users SET name = $2 WHERE id = $1
+		RETURNING `+userColumns+`
+	`, userID, name)
+	u, err := scanUser(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.User{}, ErrNotFound
+	}
+	if err != nil {
+		return model.User{}, err
+	}
+	_ = s.attachTesterStats(ctx, &u)
+	return u, nil
+}
+
 // SetEmailNotifications toggles email alerts for a user.
 func (s *Store) SetEmailNotifications(ctx context.Context, userID string, enabled bool) (model.User, error) {
 	row := s.pool.QueryRow(ctx, `

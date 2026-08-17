@@ -116,6 +116,7 @@ type Project struct {
 	LogoURL            *string        `json:"logo_url"`
 	PlatformLinks      []PlatformLink `json:"platform_links"`
 	GoogleGroupJoinURL *string        `json:"google_group_join_url,omitempty"`
+	MemberNotes        string         `json:"member_notes"`
 	CreatedAt          time.Time      `json:"created_at"`
 	TesterCount        int            `json:"tester_count"`
 	MemberCount        int            `json:"member_count"`

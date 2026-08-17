@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/adetoba/betafeedback_backend/internal/model"
 	"github.com/adetoba/betafeedback_backend/internal/store"
@@ -64,5 +65,42 @@ func (s *Server) updatePreferences(w http.ResponseWriter, r *http.Request, userI
 		}
 	}
 
+	writeJSON(w, http.StatusOK, user)
+}
+
+type updateProfileRequest struct {
+	Name *string `json:"name"`
+}
+
+func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request, userID string) {
+	var req updateProfileRequest
+	if err := decode(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Name == nil {
+		writeError(w, http.StatusBadRequest, "no profile fields provided")
+		return
+	}
+
+	name := strings.TrimSpace(*req.Name)
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if len(name) > 80 {
+		writeError(w, http.StatusBadRequest, "name must be 80 characters or fewer")
+		return
+	}
+
+	user, err := s.store.SetUserName(r.Context(), userID, name)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		s.serverError(w, "update profile", err)
+		return
+	}
 	writeJSON(w, http.StatusOK, user)
 }

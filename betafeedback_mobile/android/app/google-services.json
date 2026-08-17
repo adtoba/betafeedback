@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "629984102803-eua627v99ntfcs0dbi3v3kfb0h436sha.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.betafeedback.app",
+            "certificate_hash": "ec5a27b926bc995de37e5799da72e1782a71dc4f"
+          }
+        },
+        {
           "client_id": "629984102803-uljded633ce121an01dvbcggl5i0ej05.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

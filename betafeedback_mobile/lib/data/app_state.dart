@@ -463,6 +463,7 @@ class AppState extends ChangeNotifier {
     required String description,
     String? appLink,
     String? googleGroupJoinUrl,
+    String? memberNotes,
     List<PlatformLink> platformLinks = const [],
     List<int>? logoBytes,
     String? logoFilename,
@@ -475,6 +476,8 @@ class AppState extends ChangeNotifier {
               if (appLink != null && appLink.isNotEmpty) 'app_link': appLink,
               if (googleGroupJoinUrl != null && googleGroupJoinUrl.isNotEmpty)
                 'google_group_join_url': googleGroupJoinUrl,
+              if (memberNotes != null && memberNotes.trim().isNotEmpty)
+                'member_notes': memberNotes.trim(),
               if (platformLinks.isNotEmpty)
                 'platform_links': platformLinks.map((l) => l.toJson()).toList(),
             })
@@ -518,6 +521,20 @@ class AppState extends ChangeNotifier {
     };
     final res =
         await _api.patch('/v1/projects/$projectId', body) as Map<String, dynamic>;
+    final project = Project.fromJson(res);
+    await loadProject(projectId);
+    return project;
+  }
+
+  Future<Project> updateProjectMemberNotes({
+    required String projectId,
+    required String memberNotes,
+  }) async {
+    final res =
+        await _api.patch('/v1/projects/$projectId', {
+              'member_notes': memberNotes.trim(),
+            })
+            as Map<String, dynamic>;
     final project = Project.fromJson(res);
     await loadProject(projectId);
     return project;
@@ -834,6 +851,23 @@ class AppState extends ChangeNotifier {
     } else {
       await _push.unregister();
     }
+  }
+
+  Future<void> updateProfileName(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('Name is required');
+    }
+    final res =
+        await _api.put('/v1/me/profile', {'name': trimmed})
+            as Map<String, dynamic>;
+    final user = User.fromJson(res);
+    _currentUser = user;
+    final cached = _users[user.id];
+    if (cached != null) {
+      _users[user.id] = cached.copyWith(name: user.name);
+    }
+    notifyListeners();
   }
 
   // --- Tester marketplace ---

@@ -59,7 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 bottom: AppSpace.xxxl,
               ),
               children: [
-                _IdentityRow(user: user),
+                _IdentityRow(user: user, appState: appState),
                 const SizedBox(height: AppSpace.xxl),
                 if (!_subLoaded)
                   const Padding(
@@ -110,9 +110,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _IdentityRow extends StatelessWidget {
-  const _IdentityRow({required this.user});
+  const _IdentityRow({required this.user, required this.appState});
 
   final User user;
+  final AppState appState;
+
+  Future<void> _editName(BuildContext context) async {
+    final name = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => _NameEditorSheet(initialName: user.name),
+    );
+    if (name == null || !context.mounted) return;
+    if (name == user.name.trim()) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await appState.updateProfileName(name);
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +142,7 @@ class _IdentityRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 58,
@@ -163,6 +184,10 @@ class _IdentityRow extends StatelessWidget {
                   ),
               ],
             ),
+          ),
+          TextButton(
+            onPressed: () => _editName(context),
+            child: const Text('Edit'),
           ),
         ],
       ),
@@ -459,6 +484,85 @@ class _TesterMarketplacePanelState extends State<_TesterMarketplacePanel> {
     );
   }
 }
+
+class _NameEditorSheet extends StatefulWidget {
+  const _NameEditorSheet({required this.initialName});
+
+  final String initialName;
+
+  @override
+  State<_NameEditorSheet> createState() => _NameEditorSheetState();
+}
+
+class _NameEditorSheetState extends State<_NameEditorSheet> {
+  late final TextEditingController _name;
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpace.gutter,
+        AppSpace.lg,
+        AppSpace.gutter,
+        AppSpace.lg + bottom,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Your name', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: AppSpace.md),
+            TextFormField(
+              controller: _name,
+              autofocus: true,
+              maxLength: 80,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                hintText: 'Jordan Ade',
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Name is required';
+                }
+                return null;
+              },
+              onFieldSubmitted: (_) => _save(),
+            ),
+            const SizedBox(height: AppSpace.md),
+            FilledButton(
+              onPressed: _save,
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.of(context).pop(_name.text.trim());
+  }
+}
+
 class _BioEditorSheet extends StatefulWidget {
   const _BioEditorSheet({required this.initialBio});
 

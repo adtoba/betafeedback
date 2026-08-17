@@ -118,10 +118,7 @@ class BillingService {
   /// Returns true when Pro entitlement is active after the purchase.
   Future<bool> purchasePro() async {
     if (!_configured) {
-      throw StateError(
-        'RevenueCat is not configured. Set REVENUECAT_IOS_API_KEY / '
-        'REVENUECAT_ANDROID_API_KEY in .env.',
-      );
+      throw StateError(_revenueCatNotConfiguredMessage);
     }
 
     final offerings = await Purchases.getOfferings();
@@ -217,5 +214,15 @@ class BillingService {
     // Real RC public keys are appl_… / goog_… / amzn_… / strp_… with entropy.
     if (key.length < 20) return null;
     return key;
+  }
+
+  static String get _revenueCatNotConfiguredMessage {
+    if (Platform.isIOS || Platform.isMacOS) {
+      return 'RevenueCat is not configured. Set REVENUECAT_IOS_API_KEY in .env.';
+    }
+    if (Platform.isAndroid) {
+      return 'RevenueCat is not configured. Set REVENUECAT_ANDROID_API_KEY in .env.';
+    }
+    return 'RevenueCat is not configured. Check your RevenueCat API keys in .env.';
   }
 }
