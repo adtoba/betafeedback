@@ -5,6 +5,7 @@ import '../../theme/app_tokens.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/brand_mark.dart';
 import '../../widgets/google_logo.dart';
+import '../../widgets/legal_links_text.dart';
 
 import '../../app/app_scope.dart';
 import '../../services/apple_auth_service.dart';
@@ -136,7 +137,10 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ],
                         const SizedBox(height: AppSpace.xl),
-                        const _LegalNote(),
+                        const LegalLinksText(
+                          termsLabel: 'Terms',
+                          privacyLabel: 'Privacy Policy',
+                        ),
                       ],
                     ),
                   ),
@@ -146,35 +150,6 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LegalNote extends StatelessWidget {
-  const _LegalNote();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Text.rich(
-      textAlign: TextAlign.center,
-      TextSpan(
-        text: 'By continuing you agree to our ',
-        children: const [
-          TextSpan(
-            text: 'Terms',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          TextSpan(text: ' and '),
-          TextSpan(
-            text: 'Privacy Policy',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          TextSpan(text: '.'),
-        ],
-      ),
-      style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
     );
   }
 }

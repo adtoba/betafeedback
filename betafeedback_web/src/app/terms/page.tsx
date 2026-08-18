@@ -15,7 +15,7 @@ export default function TermsPage() {
         <div className="container legal__inner">
           <p className="eyebrow">Legal</p>
           <h1>Terms of Service</h1>
-          <p className="legal__meta">Last updated: August 5, 2026</p>
+          <p className="legal__meta">Last updated: August 18, 2026</p>
           <p className="legal__lede">
             These Terms of Service (“Terms”) govern your access to and use of
             BetaFeedback’s website, mobile apps, and related services
@@ -41,40 +41,56 @@ export default function TermsPage() {
           <section id="service" className="legal__section">
             <h2>The Service</h2>
             <p>
-              BetaFeedback helps creators run betas: create projects, invite
-              testers, collect feedback, structure bugs, announce releases, and
-              (on Pro) propose test-for-test swaps. Features may change as we
-              improve the product. We may offer free and paid plans with
-              different limits.
+              BetaFeedback helps indie developers and small teams collect
+              pre-release feedback, triage it into structured bugs, invite
+              testers, announce releases, and (on Pro) propose test-for-test
+              swaps. It is a collaboration and feedback-management tool — not
+              an app store or beta-build distribution platform.
+            </p>
+            <p>
+              Creators add optional <strong>Getting started notes</strong> to a
+              project (for example download links and install steps). Testers
+              who join receive those notes by email and can read them in the
+              app. You are responsible for links and instructions you provide
+              and for only sharing software you are authorized to test.
+            </p>
+            <p>
+              Features may vary by platform and change as we improve the
+              product. We may offer free and paid plans with different limits.
             </p>
           </section>
 
           <section id="accounts" className="legal__section">
             <h2>Accounts</h2>
             <p>
-              You must provide accurate information and keep your sign-in method
-              secure. You are responsible for activity under your account. You
-              must be at least 13 years old (or the minimum age required in your
-              country) to use the Service. If you use BetaFeedback on behalf of
-              an organization, you represent that you have authority to bind
-              that organization to these Terms.
+              You may sign in with a one-time email code, Google Sign-In, or
+              Sign in with Apple (where available). You must provide accurate
+              information, keep your sign-in method secure, and may update your
+              display name in the app. You are responsible for activity under
+              your account. You must be at least 13 years old (or the minimum
+              age required in your country) to use the Service. If you use
+              BetaFeedback on behalf of an organization, you represent that you
+              have authority to bind that organization to these Terms.
             </p>
           </section>
 
           <section id="content" className="legal__section">
             <h2>Your content</h2>
             <p>
-              You retain ownership of content you submit (projects, feedback,
-              screenshots, comments, messages, and related materials). You grant
-              us a worldwide, non-exclusive license to host, store, process,
-              display, and transmit that content solely to operate and improve
-              the Service for you and people you invite into your projects.
+              You retain ownership of content you submit (projects, getting
+              started notes, feedback, screenshots, comments, release notes,
+              and related materials). You grant us a worldwide, non-exclusive
+              license to host, store, process, display, and transmit that
+              content solely to operate and improve the Service for you and
+              people you invite into your projects (including sending welcome
+              emails that include notes and links you provide).
             </p>
             <p>
               You are responsible for the content you upload and for having the
               rights to share it. Do not upload unlawful, harmful, or infringing
               material. Project owners are responsible for how their projects
-              are used and who they invite.
+              are used, who they invite, and any third-party URLs or install
+              instructions they share.
             </p>
           </section>
 
@@ -112,17 +128,28 @@ export default function TermsPage() {
           <section id="subscriptions" className="legal__section">
             <h2>Subscriptions &amp; billing</h2>
             <p>
-              Free accounts include limited features (currently one full
-              project with core beta tools). BetaFeedback Pro is a paid
-              auto-renewing subscription that unlocks additional features such
-              as unlimited projects and test-for-test swaps. Pricing is shown in
-              the app and store listing before you purchase.
+              Free accounts include limited features (currently one full project
+              with invites, AI-assisted bug structuring, CSV export, and email
+              notifications). <strong>BetaFeedback Pro</strong> is a paid
+              auto-renewing monthly subscription (product id{" "}
+              <code>pro_monthly</code>) that unlocks unlimited projects and
+              test-for-test swaps. Pricing is shown in the app and store listing
+              before you purchase and may vary by region.
+            </p>
+            <p>
+              Subscriptions renew automatically unless you cancel at least 24
+              hours before the end of the current billing period. Payment is
+              charged to your Apple ID or Google Play account at confirmation of
+              purchase and on each renewal. You can manage or cancel in your
+              device&apos;s App Store or Play Store subscription settings, or
+              via the in-app subscription management link where available.
+              Restore purchases is available if you reinstall or change devices.
             </p>
             <p>
               Purchases made through the Apple App Store or Google Play are
-              billed by those platforms under their terms. Manage, cancel, or
-              request refunds through the store account used for the purchase.
-              Unless required by law, fees are non-refundable once charged.
+              billed by those platforms under their terms. Request refunds
+              through the store account used for the purchase. Unless required
+              by law, fees are non-refundable once charged.
             </p>
           </section>
 

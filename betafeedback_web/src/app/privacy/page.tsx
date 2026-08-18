@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         <div className="container legal__inner">
           <p className="eyebrow">Legal</p>
           <h1>Privacy Policy</h1>
-          <p className="legal__meta">Last updated: August 14, 2026</p>
+          <p className="legal__meta">Last updated: August 18, 2026</p>
           <p className="legal__lede">
             This policy explains what BetaFeedback (“we”, “us”) collects when
             you use our website and mobile apps, how we use it, and the choices
@@ -39,9 +39,10 @@ export default function PrivacyPage() {
           <section id="who" className="legal__section">
             <h2>Who we are</h2>
             <p>
-              BetaFeedback is a beta-testing product that helps creators invite
-              testers, collect feedback, and turn reports into structured bugs.
-              The service is available at{" "}
+              BetaFeedback is a feedback and bug-triage product for pre-release
+              software. Creators invite testers, share getting started notes
+              with install instructions, collect reports with screenshots, and
+              turn feedback into structured bugs. The service is available at{" "}
               <a href="https://betafeedback.com">betafeedback.com</a> and in
               our iOS and Android apps.
             </p>
@@ -52,19 +53,20 @@ export default function PrivacyPage() {
             <p>Depending on how you use BetaFeedback, we may collect:</p>
             <ul>
               <li>
-                <strong>Account information</strong> — email address, name, and
-                profile details you provide (including optional tester bio and
-                preferences).
+                <strong>Account information</strong> — email address, display
+                name (editable in Profile), and optional tester bio and
+                preferences.
               </li>
               <li>
                 <strong>Authentication data</strong> — one-time sign-in codes
-                sent by email, or identifiers from Google Sign-In if you choose
-                that option.
+                sent by email, or identifiers from Google Sign-In or Sign in
+                with Apple if you choose those options.
               </li>
               <li>
                 <strong>Project &amp; collaboration content</strong> — projects
-                you create, invites, memberships, test-for-test swap proposals,
-                feedback, comments, release notes, and related metadata.
+                you create, getting started notes, invites, memberships,
+                test-for-test swap proposals, feedback, comments, release
+                notes, and related metadata.
               </li>
               <li>
                 <strong>Media you attach</strong> — screenshots or screen
@@ -100,7 +102,9 @@ export default function PrivacyPage() {
                 notifications.
               </li>
               <li>
-                Send transactional email (sign-in codes, invites, and product
+                Send transactional email (sign-in codes, project invites,
+                welcome emails when you join a project — including getting
+                started notes and links the creator provided — and product
                 alerts you enable).
               </li>
               <li>
@@ -164,8 +168,8 @@ export default function PrivacyPage() {
             <h2>Your rights &amp; choices</h2>
             <ul>
               <li>
-                Update profile and notification preferences in the app where
-                available.
+                Update your display name, tester profile, and notification
+                preferences in the app where available.
               </li>
               <li>
                 Disable push notifications in system settings, or turn off email

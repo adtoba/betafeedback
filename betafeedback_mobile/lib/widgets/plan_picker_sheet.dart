@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
 import '../utils/store_compliance.dart';
 import 'app_header.dart';
+import 'legal_links_text.dart';
 import 'status_pill.dart';
 
 /// Convenience wrapper that wires RevenueCat purchase / restore / manage.
@@ -186,6 +187,11 @@ class PlanPickerSheet extends StatelessWidget {
                     child: const Text('Restore purchases'),
                   ),
               ],
+            ),
+            const SizedBox(height: AppSpace.sm),
+            const LegalLinksText(
+              prefix: 'By subscribing you agree to our ',
+              termsLabel: 'Terms of Use',
             ),
           ],
         ),
