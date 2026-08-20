@@ -10,9 +10,9 @@ export function DownloadSection() {
           Create a project, find people open to testing or propose a swap, and
           let structured bugs come to you.
         </p>
-        <StoreBadges variant="dark" mailtoSubject="BetaFeedback" />
+        <StoreBadges variant="dark" />
         <p className="ctacard__meta">
-          Early access — tap a badge to get notified, or write{" "}
+          Free to start on iOS · Android coming soon · Questions?{" "}
           <a href="mailto:hello@betafeedback.com">hello@betafeedback.com</a>
         </p>
       </div>

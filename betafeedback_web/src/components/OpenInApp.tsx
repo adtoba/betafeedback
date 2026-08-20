@@ -83,10 +83,7 @@ export function OpenInApp({
         <p className="join-foot" style={{ marginTop: 28 }}>
           Don&apos;t have the app yet?
         </p>
-        <StoreBadges
-          variant="light"
-          mailtoSubject="BetaFeedback early access"
-        />
+        <StoreBadges variant="light" />
       </main>
     </div>
   );

@@ -32,7 +32,7 @@ export function HeroSection() {
           <StoreBadges variant="light" />
 
           <p className="hero__meta">
-            Free to start · iOS &amp; Android · Early access open
+            Free to start · Download on iOS · Android coming soon
           </p>
         </div>
 

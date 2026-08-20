@@ -1,7 +1,8 @@
+export const APP_STORE_URL =
+  "https://apps.apple.com/app/betafeedback/id6790955899";
+
 type StoreBadgesProps = {
   variant?: "light" | "dark";
-  href?: string;
-  mailtoSubject?: string;
 };
 
 function AppleIcon({ fill }: { fill: string }) {
@@ -23,37 +24,35 @@ function PlayIcon() {
   );
 }
 
-export function StoreBadges({
-  variant = "light",
-  href = "#download",
-  mailtoSubject,
-}: StoreBadgesProps) {
+export function StoreBadges({ variant = "light" }: StoreBadgesProps) {
   const className = variant === "light" ? "badges badges--light" : "badges";
   const appleFill = variant === "light" ? "#000" : "#fff";
 
-  const iosHref = mailtoSubject
-    ? `mailto:hello@betafeedback.com?subject=${encodeURIComponent(mailtoSubject + " iOS early access")}`
-    : href;
-  const androidHref = mailtoSubject
-    ? `mailto:hello@betafeedback.com?subject=${encodeURIComponent(mailtoSubject + " Android early access")}`
-    : href;
-
   return (
     <div className={className}>
-      <a className="badge" href={iosHref} aria-label="Download on the App Store">
+      <a
+        className="badge"
+        href={APP_STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Download on the App Store"
+      >
         <AppleIcon fill={appleFill} />
         <span className="badge__txt">
           <small>Download on the</small>
           <b>App Store</b>
         </span>
       </a>
-      <a className="badge" href={androidHref} aria-label="Get it on Google Play">
-        <PlayIcon />
-        <span className="badge__txt">
-          <small>GET IT ON</small>
-          <b>Google Play</b>
-        </span>
-      </a>
+      <div className="badge-wrap badge-wrap--soon">
+        <span className="badge__soon">Coming soon</span>
+        <div className="badge" aria-label="Google Play — coming soon">
+          <PlayIcon />
+          <span className="badge__txt">
+            <small>GET IT ON</small>
+            <b>Google Play</b>
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

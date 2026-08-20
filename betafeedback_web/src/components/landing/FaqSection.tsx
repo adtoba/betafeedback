@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: "When is it available?",
-    a: "We’re rolling out on iOS and Android. Tap a download badge or email hello@betafeedback.com for early access.",
+    a: "BetaFeedback is live on the App Store for iPhone and iPad. Android is coming soon — email hello@betafeedback.com if you want a heads-up when it ships.",
   },
 ];
 

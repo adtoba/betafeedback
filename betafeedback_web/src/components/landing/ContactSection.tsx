@@ -22,10 +22,10 @@ export function ContactSection() {
           </a>
           <a
             className="contact__card"
-            href="mailto:hello@betafeedback.com?subject=BetaFeedback%20early%20access"
+            href="mailto:hello@betafeedback.com?subject=BetaFeedback%20Android%20launch"
           >
-            <span className="contact__label">Early access</span>
-            <strong>Get on iOS or Android when seats open</strong>
+            <span className="contact__label">Android</span>
+            <strong>Get notified when Google Play launches</strong>
             <span className="contact__email">hello@betafeedback.com</span>
           </a>
           <a
